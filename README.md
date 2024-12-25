@@ -25,3 +25,12 @@
 └── stream
     └── stream_client.py
 ```
+
+执行顺序：
+
+```
+python cloud/display_server.py
+python edge/processing_server.py
+python stream/stream_client.py
+python switcher/model_switcher.py
+```

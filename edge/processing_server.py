@@ -11,6 +11,9 @@ import sys
 import base64
 import requests
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
