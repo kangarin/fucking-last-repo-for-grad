@@ -5,18 +5,60 @@
     <title>Object Detection Streams</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
         .stream-container {
             margin: 20px;
-            padding: 10px;
+            padding: 20px;
             border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        
         .detection-image {
             max-width: 800px;
             max-height: 600px;
+            border-radius: 4px;
         }
+        
         .stream-info {
             margin: 10px 0;
             font-family: monospace;
+            color: #666;
+        }
+        
+        .latency-info {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .latency-item {
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        
+        .latency-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .latency-title {
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .frame-info {
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #666;
         }
     </style>
 </head>
@@ -27,6 +69,30 @@
     <script>
         const socket = io();
         const activeStreams = new Set();
+
+        function formatLatency(ms) {
+            return ms.toFixed(2);
+        }
+
+        function updateLatencyInfo(container, latencies) {
+            const latencyInfo = container.querySelector('.latency-info');
+            if (latencies) {
+                latencyInfo.innerHTML = `
+                    <div class="latency-item">
+                        <span class="latency-title">Processing Latency:</span>
+                        <span class="latency-value">${formatLatency(latencies.processing_latency * 1000)} ms</span>
+                    </div>
+                    <div class="latency-item">
+                        <span class="latency-title">Transmission Latency:</span>
+                        <span class="latency-value">${formatLatency(latencies.transmission_latency * 1000)} ms</span>
+                    </div>
+                    <div class="latency-item">
+                        <span class="latency-title">End-to-End Latency:</span>
+                        <span class="latency-value">${formatLatency(latencies.end_to_end_latency * 1000)} ms</span>
+                    </div>
+                `;
+            }
+        }
 
         // Handle new detection results
         socket.on('detection_update', function(data) {
@@ -44,8 +110,16 @@
             const img = streamContainer.querySelector('.detection-image');
             img.src = `data:image/jpeg;base64,${data.image}`;
             
-            const info = streamContainer.querySelector('.stream-info');
-            info.textContent = `Stream: ${streamId} | Timestamp: ${new Date(data.timestamp * 1000).toISOString()}`;
+            // Update frame and timestamp info
+            const frameInfo = streamContainer.querySelector('.frame-info');
+            frameInfo.innerHTML = `
+                <div>Stream ID: ${streamId}</div>
+                <div>Frame ID: ${data.frame_id}</div>
+                <div>Generated: ${new Date(data.timestamps.generated * 1000).toISOString()}</div>
+            `;
+
+            // Update latency information
+            updateLatencyInfo(streamContainer, data.latencies);
         });
 
         function createStreamContainer(streamId) {
@@ -53,10 +127,17 @@
             container.id = `stream-${streamId}`;
             container.className = 'stream-container';
             
-            const info = document.createElement('div');
-            info.className = 'stream-info';
-            container.appendChild(info);
+            // Frame info section
+            const frameInfo = document.createElement('div');
+            frameInfo.className = 'frame-info';
+            container.appendChild(frameInfo);
             
+            // Latency info section
+            const latencyInfo = document.createElement('div');
+            latencyInfo.className = 'latency-info';
+            container.appendChild(latencyInfo);
+            
+            // Detection image
             const img = document.createElement('img');
             img.className = 'detection-image';
             container.appendChild(img);
@@ -75,7 +156,8 @@
                         activeStreams.add(streamId);
                     }
                 });
-            });
+            })
+            .catch(error => console.error('Error loading active streams:', error));
     </script>
 </body>
 </html>

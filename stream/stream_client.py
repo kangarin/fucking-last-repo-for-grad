@@ -66,6 +66,7 @@ class StreamClient:
             print(f"Started streaming from {video_source}")
             
             frame_delay = stream_config['frame_delay']
+            frame_count = 0
             
             while True:
                 ret, frame = cap.read()
@@ -77,13 +78,17 @@ class StreamClient:
                 _, buffer = cv2.imencode('.jpg', frame)
                 img_base64 = base64.b64encode(buffer).decode('utf-8')
                 
-                # Send frame to processing server
+                # Send frame with timestamps
                 self.sio.emit('process_frame', {
                     'stream_id': self.stream_id,
-                    'timestamp': time.time(),
+                    'frame_id': frame_count,
+                    'timestamps': {
+                        'generated': time.time(),
+                    },
                     'image': img_base64
                 })
                 
+                frame_count += 1
                 time.sleep(frame_delay)
                 
         except Exception as e:

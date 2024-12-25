@@ -37,9 +37,25 @@ def update_detection():
         if not stream_id:
             raise ValueError("Missing stream_id")
             
+        # Add display timestamp and calculate latencies
+        timestamps = data.get('timestamps', {})
+        timestamps['displayed'] = time.time()
+        
+        # Calculate latencies
+        latencies = {
+            'processing_latency': timestamps['processed'] - timestamps['received'],
+            'transmission_latency': timestamps['displayed'] - timestamps['processed'],
+            'end_to_end_latency': timestamps['displayed'] - timestamps['generated']
+        }
+        
+        # Add latencies to data
+        data['latencies'] = latencies
+        
         # Update latest detection for this stream
         latest_detections[stream_id] = {
-            'timestamp': data.get('timestamp', time.time()),
+            'frame_id': data.get('frame_id'),
+            'timestamps': timestamps,
+            'latencies': latencies,
             'image': data.get('image')
         }
         

@@ -79,7 +79,7 @@ class DetectionProcessor:
         print(f"Loading initial model (yolov5{default_model})...")
         self.model_manager.switch_model(default_model)
     
-    def process_frame(self, stream_id, timestamp, frame):
+    def process_frame(self, stream_id, frame_id, timestamps, frame):
         """Process a single frame and send results to display server"""
         try:
             if stream_id not in self.active_streams:
@@ -92,6 +92,9 @@ class DetectionProcessor:
                 results = model(frame)
                 rendered_frame = results.render()[0]
                 
+                # Add processing completion timestamp
+                timestamps['processed'] = time.time()
+                
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
                 img_base64 = base64.b64encode(buffer).decode('utf-8')
@@ -99,7 +102,8 @@ class DetectionProcessor:
                 # Send results to display server
                 response = requests.post(f"{self.display_server_url}/update_detection", json={
                     'stream_id': stream_id,
-                    'timestamp': timestamp,
+                    'frame_id': frame_id,
+                    'timestamps': timestamps,
                     'image': img_base64
                 })
                 
@@ -143,6 +147,10 @@ def handle_frame(data):
             emit('error', {'message': 'Stream not active'})
             return
             
+        # Add received timestamp
+        timestamps = data.get('timestamps', {})
+        timestamps['received'] = time.time()
+        
         # Decode image data
         img_data = base64.b64decode(data['image'])
         nparr = np.frombuffer(img_data, np.uint8)
@@ -155,7 +163,8 @@ def handle_frame(data):
         # Process frame
         processor.process_frame(
             stream_id=stream_id,
-            timestamp=data.get('timestamp', time.time()),
+            frame_id=data.get('frame_id'),
+            timestamps=timestamps,
             frame=frame
         )
         
