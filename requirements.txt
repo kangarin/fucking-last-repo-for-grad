@@ -1,0 +1,10 @@
+websocket-client
+eventlet
+flask
+flask-socketio
+opencv-python
+numpy
+torch
+requests
+python-socketio
+pyyaml

@@ -1,0 +1,24 @@
+# Cloud server configurations
+cloud:
+  display_server:
+    host: '0.0.0.0'
+    port: 6001
+    url: 'http://localhost:6001'
+
+# Edge node configurations
+edge:
+  processing_server:
+    host: '0.0.0.0'
+    port: 6000
+    url: 'http://localhost:6000'
+  
+  models:
+    default: 's'
+    weights_dir: 'edge/models'
+    allowed_sizes: ['n', 's', 'm', 'l', 'x']
+
+# Video stream configurations
+stream:
+  source_path: 'data/road_traffic.mp4'
+  frame_delay: 1.0
+  default_id: 'test_stream_1'

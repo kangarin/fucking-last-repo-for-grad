@@ -1,0 +1,81 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Object Detection Streams</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        .stream-container {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        .detection-image {
+            max-width: 800px;
+            max-height: 600px;
+        }
+        .stream-info {
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Object Detection Streams</h1>
+    <div id="streams"></div>
+
+    <script>
+        const socket = io();
+        const activeStreams = new Set();
+
+        // Handle new detection results
+        socket.on('detection_update', function(data) {
+            const streamId = data.stream_id;
+            
+            // Create or update stream container
+            let streamContainer = document.getElementById(`stream-${streamId}`);
+            if (!streamContainer) {
+                streamContainer = createStreamContainer(streamId);
+                document.getElementById('streams').appendChild(streamContainer);
+                activeStreams.add(streamId);
+            }
+            
+            // Update stream content
+            const img = streamContainer.querySelector('.detection-image');
+            img.src = `data:image/jpeg;base64,${data.image}`;
+            
+            const info = streamContainer.querySelector('.stream-info');
+            info.textContent = `Stream: ${streamId} | Timestamp: ${new Date(data.timestamp * 1000).toISOString()}`;
+        });
+
+        function createStreamContainer(streamId) {
+            const container = document.createElement('div');
+            container.id = `stream-${streamId}`;
+            container.className = 'stream-container';
+            
+            const info = document.createElement('div');
+            info.className = 'stream-info';
+            container.appendChild(info);
+            
+            const img = document.createElement('img');
+            img.className = 'detection-image';
+            container.appendChild(img);
+            
+            return container;
+        }
+
+        // Load initial active streams
+        fetch('/get_active_streams')
+            .then(response => response.json())
+            .then(streams => {
+                streams.forEach(streamId => {
+                    if (!activeStreams.has(streamId)) {
+                        const container = createStreamContainer(streamId);
+                        document.getElementById('streams').appendChild(container);
+                        activeStreams.add(streamId);
+                    }
+                });
+            });
+    </script>
+</body>
+</html>
