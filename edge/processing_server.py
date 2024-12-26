@@ -33,6 +33,8 @@ class ModelManager:
     def __init__(self):
         self.current_model = None
         self.next_model = None
+        self.current_model_name = None
+        self.next_model_name = None
         self.model_lock = threading.Lock()
         self.models_config = config.get_models_config()
         self.models_dir = Path(self.models_config['weights_dir'])
@@ -48,7 +50,8 @@ class ModelManager:
         self.stats = {
             'accuracy': None,
             'latency': None,
-            'queue_length': None
+            'queue_length': None,
+            'model_name': None
         }
         self.stats_lock = threading.Lock()
 
@@ -73,7 +76,7 @@ class ModelManager:
             new_model = self.load_model(new_model_name)
             with self.model_lock:
                 self.next_model = new_model
-                self.current_map = self.model_maps[new_model_name]
+                self.next_model_name = new_model_name
             return True
         except Exception as e:
             print(f"Failed to load model: {e}")
@@ -83,7 +86,10 @@ class ModelManager:
         with self.model_lock:
             if self.next_model is not None:
                 self.current_model = self.next_model
+                self.current_model_name = self.next_model_name
+                self.current_map = self.model_maps.get(self.current_model_name, 0)
                 self.next_model = None
+                self.next_model_name = None
                 print("Model switched successfully")
             return self.current_model
 
@@ -180,9 +186,13 @@ class DetectionProcessor:
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
+        self.model_manager.stats['model_name'] = self.model_manager.current_model_name
+
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
-        f"Queue Length: {self.model_manager.stats['queue_length']}")
+        f"Queue Length: {self.model_manager.stats['queue_length']}, "
+        f"Model: yolov5{self.model_manager.stats['model_name']}"
+        )
     
     def stop(self):
         """Stop the processing thread"""
