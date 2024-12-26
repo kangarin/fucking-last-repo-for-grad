@@ -20,5 +20,5 @@ edge:
 # Video stream configurations
 stream:
   source_path: 'data/road_traffic.mp4'
-  frame_delay: 1.0
+  frame_delay: 0.1
   default_id: 'test_stream_1'

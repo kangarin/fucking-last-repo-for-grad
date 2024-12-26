@@ -10,6 +10,7 @@ from pathlib import Path
 import sys
 import base64
 import requests
+from collections import deque
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -77,12 +78,51 @@ class DetectionProcessor:
         display_config = config.get_cloud_display_config()
         self.display_server_url = display_config['url']
         
+        # Initialize frame queue with maxlen=10
+        self.frame_queue = deque(maxlen=10)
+        self.queue_lock = threading.Lock()
+        
+        # Initialize processing thread
+        self.processing_thread = threading.Thread(target=self._process_queue, daemon=True)
+        self.running = True
+        
         # Initialize default model
         default_model = config.get_models_config()['default']
         print(f"Loading initial model (yolov5{default_model})...")
         self.model_manager.switch_model(default_model)
+        
+        # Start processing thread
+        self.processing_thread.start()
     
-    def process_frame(self, stream_id, frame_id, timestamps, frame):
+    def add_frame_to_queue(self, stream_id, frame_id, timestamps, frame):
+        """Add a frame to the processing queue"""
+        with self.queue_lock:
+            # If queue is at max length, oldest frame will automatically be dropped
+            self.frame_queue.append({
+                'stream_id': stream_id,
+                'frame_id': frame_id,
+                'timestamps': timestamps,
+                'frame': frame
+            })
+    
+    def _process_queue(self):
+        """Background thread for processing frames from queue"""
+        while self.running:
+            frame_data = None
+            
+            # Get frame from queue with lock
+            with self.queue_lock:
+                if len(self.frame_queue) > 0:
+                    frame_data = self.frame_queue.popleft()
+            
+            # Process frame if we got one
+            if frame_data is not None:
+                self._process_single_frame(**frame_data)
+            else:
+                # No frames to process, sleep briefly
+                time.sleep(0.01)
+    
+    def _process_single_frame(self, stream_id, frame_id, timestamps, frame):
         """Process a single frame and send results to display server"""
         try:
             if stream_id not in self.active_streams:
@@ -115,6 +155,12 @@ class DetectionProcessor:
                     
         except Exception as e:
             print(f"Error processing frame: {e}")
+    
+    def stop(self):
+        """Stop the processing thread"""
+        self.running = False
+        if self.processing_thread.is_alive():
+            self.processing_thread.join()
 
 # Create processor instance
 processor = DetectionProcessor()
@@ -163,8 +209,8 @@ def handle_frame(data):
             emit('error', {'message': 'Invalid image data'})
             return
         
-        # Process frame
-        processor.process_frame(
+        # Use new queue method instead of direct processing
+        processor.add_frame_to_queue(
             stream_id=stream_id,
             frame_id=data.get('frame_id'),
             timestamps=timestamps,
@@ -193,8 +239,11 @@ def handle_switch_model(data):
         emit('error', {'message': str(e)})
 
 if __name__ == '__main__':
-    server_config = config.get_edge_processing_config()
-    socketio.run(app, 
-                host=server_config['host'], 
-                port=server_config['port'], 
-                debug=False)
+    try:
+        server_config = config.get_edge_processing_config()
+        socketio.run(app, 
+                    host=server_config['host'], 
+                    port=server_config['port'], 
+                    debug=False)
+    finally:
+        processor.stop()

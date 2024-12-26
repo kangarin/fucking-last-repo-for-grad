@@ -69,10 +69,18 @@ class StreamClient:
             frame_count = 0
             
             while True:
+                # ret, frame = cap.read()
+                # if not ret:
+                #     print("End of video stream")
+                #     break
                 ret, frame = cap.read()
                 if not ret:
-                    print("End of video stream")
-                    break
+                    print("End of video stream, restarting...")
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 重置到视频开始
+                    ret, frame = cap.read()  # 重新读取第一帧
+                    if not ret:  # 如果还是失败，那么可能是视频文件损坏
+                        print("Failed to restart video stream")
+                        break
                 
                 # Encode frame
                 _, buffer = cv2.imencode('.jpg', frame)
