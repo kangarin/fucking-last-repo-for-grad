@@ -36,7 +36,22 @@ class ModelManager:
         self.model_lock = threading.Lock()
         self.models_config = config.get_models_config()
         self.models_dir = Path(self.models_config['weights_dir'])
-        
+        # 添加每个模型对应的mAP值
+        self.model_maps = {
+            'n': 25.7,  # YOLOv5n
+            's': 37.4,  # YOLOv5s
+            'm': 45.2,  # YOLOv5m
+            'l': 49.0,  # YOLOv5l
+            'x': 50.7   # YOLOv5x
+        }
+        self.current_map = None  # 当前模型的mAP
+        self.stats = {
+            'accuracy': None,
+            'latency': None,
+            'queue_length': None
+        }
+        self.stats_lock = threading.Lock()
+
     def load_model(self, model_name):
         weight_file = self.models_dir / f'yolov5{model_name}.pt'
         if not weight_file.exists():
@@ -58,6 +73,7 @@ class ModelManager:
             new_model = self.load_model(new_model_name)
             with self.model_lock:
                 self.next_model = new_model
+                self.current_map = self.model_maps[new_model_name]
             return True
         except Exception as e:
             print(f"Failed to load model: {e}")
@@ -137,6 +153,10 @@ class DetectionProcessor:
                 
                 # Add processing completion timestamp
                 timestamps['processed'] = time.time()
+
+                # 更新统计信息
+                with self.model_manager.stats_lock:
+                    self.update_statistics(timestamps)
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -155,6 +175,14 @@ class DetectionProcessor:
                     
         except Exception as e:
             print(f"Error processing frame: {e}")
+
+    def update_statistics(self, timestamps):
+        self.model_manager.stats['accuracy'] = self.model_manager.current_map
+        self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
+        self.model_manager.stats['queue_length'] = len(self.frame_queue)
+        print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
+        f"Latency: {self.model_manager.stats['latency']:.3f}s, "
+        f"Queue Length: {self.model_manager.stats['queue_length']}")
     
     def stop(self):
         """Stop the processing thread"""
