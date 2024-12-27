@@ -2,7 +2,7 @@
 import torch
 import cv2
 import numpy as np
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_socketio import SocketIO, emit
 import threading
 import time
@@ -48,10 +48,10 @@ class ModelManager:
         }
         self.current_map = None  # 当前模型的mAP
         self.stats = {
-            'accuracy': None,
-            'latency': None,
-            'queue_length': None,
-            'model_name': None
+            'accuracy': 0,
+            'latency': 0,
+            'queue_length': 0,
+            'model_name': 's'
         }
         self.stats_lock = threading.Lock()
 
@@ -276,6 +276,27 @@ def handle_switch_model(data):
     except Exception as e:
         emit('error', {'message': str(e)})
 
+# 添加获取状态的路由
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'message': 'pong'})
+
+@app.route('/get_stats', methods=['GET'])
+def get_stats():
+    """获取当前系统状态统计信息"""
+    with processor.model_manager.stats_lock:
+        stats = {
+            'stats': {
+                'accuracy': processor.model_manager.stats['accuracy'],
+                'latency': processor.model_manager.stats['latency'],
+                'queue_length': processor.model_manager.stats['queue_length'],
+                'model_name': processor.model_manager.stats['model_name']
+            },
+            'timestamp': time.time()
+        }
+        print(stats)
+        return jsonify(stats)
+    
 if __name__ == '__main__':
     try:
         server_config = config.get_edge_processing_config()
