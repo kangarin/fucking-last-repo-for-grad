@@ -214,19 +214,22 @@ class RLModelSwitcher:
         return torch.tensor(sequence, dtype=torch.float32, device=self.device)
 
     def get_reward(self, current_stats, prev_stats):
-        """计算奖励值"""
         if not current_stats or not prev_stats:
             return torch.tensor(-1.0, device=self.device)
             
-        # 计算相对变化
-        latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / prev_stats['latency']
-        accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / prev_stats['accuracy']
+        # 添加除零保护
+        latency_rel_change = 0
+        if prev_stats['latency'] != 0:
+            latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / prev_stats['latency']
+            
+        accuracy_rel_change = 0
+        if prev_stats['accuracy'] != 0:
+            accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / prev_stats['accuracy']
         
         # 归一化到[-1, 1]范围
         norm_latency_change = np.tanh(latency_rel_change * 5)
         norm_accuracy_change = np.tanh(accuracy_rel_change * 5)
         
-        # 权重
         latency_weight = 0.4
         accuracy_weight = 0.6
         

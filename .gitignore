@@ -2,3 +2,5 @@ yolov5/
 data/
 models/
 __pycache__/
+*.pt
+*.pth
