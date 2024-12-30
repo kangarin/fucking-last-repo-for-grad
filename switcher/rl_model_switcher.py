@@ -218,24 +218,40 @@ class RLModelSwitcher:
     def get_reward(self, current_stats, prev_stats):
         """计算奖励值"""
         if not current_stats or not prev_stats:
-            return torch.tensor([[-1.0]], device=self.device)  # 修改：返回正确形状的张量
+            return torch.tensor([[-1.0]], device=self.device)
             
-        # 计算相对变化
-        latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / prev_stats['latency']
-        accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / prev_stats['accuracy']
-        
-        # 归一化到[-1, 1]范围
-        norm_latency_change = np.tanh(latency_rel_change * 5)
-        norm_accuracy_change = np.tanh(accuracy_rel_change * 5)
-        
-        # 权重
-        latency_weight = 0.4
-        accuracy_weight = 0.6
-        
-        reward = (latency_weight * norm_latency_change + 
-                accuracy_weight * norm_accuracy_change)
-                
-        # 修改：返回正确形状的张量
+        # 安全地计算相对变化
+        try:
+            # 防止除零，如果数值太小就用一个很小的数代替
+            eps = 1e-10
+            
+            if abs(prev_stats['latency']) < eps:
+                latency_rel_change = 0.0
+            else:
+                latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / max(prev_stats['latency'], eps)
+            
+            if abs(prev_stats['accuracy']) < eps:
+                accuracy_rel_change = 0.0
+            else:
+                accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / max(prev_stats['accuracy'], eps)
+            
+            # 归一化到[-1, 1]范围
+            norm_latency_change = np.tanh(latency_rel_change * 5)
+            norm_accuracy_change = np.tanh(accuracy_rel_change * 5)
+            
+            # 权重
+            latency_weight = 0.4
+            accuracy_weight = 0.6
+            
+            reward = (latency_weight * norm_latency_change + 
+                    accuracy_weight * norm_accuracy_change)
+            
+        except Exception as e:
+            logging.error(f"Error calculating reward: {e}")
+            logging.error(f"Current stats: {current_stats}")
+            logging.error(f"Previous stats: {prev_stats}")
+            reward = -1.0  # 发生错误时返回负奖励
+                    
         return torch.tensor([[reward]], dtype=torch.float32, device=self.device)
 
     def choose_action(self, state):
