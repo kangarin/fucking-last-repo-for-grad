@@ -47,6 +47,7 @@ class LSTMDQN(nn.Module):
         )
     
     def forward(self, x):
+        # Ensure input has correct shape [batch_size, seq_len, input_dim]
         if len(x.size()) == 2:
             x = x.unsqueeze(0)
         lstm_out, _ = self.lstm(x)
@@ -85,7 +86,8 @@ class StatsCollector:
                         self.stats_queue.append({
                             'timestamp': time.time(),
                             'latency': stats['latency'],
-                            'accuracy': stats['accuracy']
+                            'accuracy': stats['accuracy'],
+                            'model_name': stats.get('model_name', '')  # 添加模型名称
                         })
                         logging.debug(f"Collected stats: {stats}")
             except Exception as e:
@@ -214,29 +216,27 @@ class RLModelSwitcher:
         return torch.tensor(sequence, dtype=torch.float32, device=self.device)
 
     def get_reward(self, current_stats, prev_stats):
+        """计算奖励值"""
         if not current_stats or not prev_stats:
-            return torch.tensor(-1.0, device=self.device)
+            return torch.tensor([[-1.0]], device=self.device)  # 修改：返回正确形状的张量
             
-        # 添加除零保护
-        latency_rel_change = 0
-        if prev_stats['latency'] != 0:
-            latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / prev_stats['latency']
-            
-        accuracy_rel_change = 0
-        if prev_stats['accuracy'] != 0:
-            accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / prev_stats['accuracy']
+        # 计算相对变化
+        latency_rel_change = (prev_stats['latency'] - current_stats['latency']) / prev_stats['latency']
+        accuracy_rel_change = (current_stats['accuracy'] - prev_stats['accuracy']) / prev_stats['accuracy']
         
         # 归一化到[-1, 1]范围
         norm_latency_change = np.tanh(latency_rel_change * 5)
         norm_accuracy_change = np.tanh(accuracy_rel_change * 5)
         
+        # 权重
         latency_weight = 0.4
         accuracy_weight = 0.6
         
         reward = (latency_weight * norm_latency_change + 
                 accuracy_weight * norm_accuracy_change)
                 
-        return torch.tensor(reward, dtype=torch.float32, device=self.device)
+        # 修改：返回正确形状的张量
+        return torch.tensor([[reward]], dtype=torch.float32, device=self.device)
 
     def choose_action(self, state):
         """ε-贪婪策略选择动作"""
@@ -244,7 +244,9 @@ class RLModelSwitcher:
             return random.randrange(self.n_actions)
         
         with torch.no_grad():
-            return self.policy_net(state).max(0)[1].item()
+            # 修改：确保状态张量维度正确
+            state = state.unsqueeze(0) if len(state.size()) == 2 else state
+            return self.policy_net(state).squeeze(0).max(0)[1].item()
 
     def optimize_model(self):
         """训练LSTM-DQN网络"""
@@ -256,14 +258,18 @@ class RLModelSwitcher:
         
         state_batch = torch.stack(batch.state)
         action_batch = torch.tensor(batch.action, device=self.device)
-        reward_batch = torch.stack(batch.reward)
+        reward_batch = torch.cat([r.view(1) for r in batch.reward])  # 修改：正确处理reward维度
         next_state_batch = torch.stack(batch.next_state)
         
+        # 修改：确保action_batch维度正确
         state_action_values = self.policy_net(state_batch).gather(1, action_batch.unsqueeze(1))
+        
+        # 修改：确保张量维度匹配
         next_state_values = self.target_net(next_state_batch).max(1)[0].detach()
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
         
         criterion = nn.SmoothL1Loss()
+        # 修改：确保张量维度匹配
         loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
         
         self.optimizer.zero_grad()
@@ -306,7 +312,7 @@ class RLModelSwitcher:
                         if self.steps_done % self.target_update == 0:
                             self.target_net.load_state_dict(self.policy_net.state_dict())
                         
-                        logging.info(f"Reward: {reward:.3f}, Epsilon: {self.epsilon:.3f}, "
+                        logging.info(f"Reward: {reward.item():.3f}, Epsilon: {self.epsilon:.3f}, "  # 修改：使用item()获取标量值
                                   f"Avg Reward: {np.mean(episode_rewards[-100:]):.3f}")
                     
                     action = self.choose_action(current_state)
