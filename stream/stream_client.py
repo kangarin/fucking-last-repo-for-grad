@@ -1,4 +1,3 @@
-# stream_client.py
 from socketio import Client
 import cv2
 import base64
@@ -6,6 +5,7 @@ import time
 import numpy as np
 from pathlib import Path
 import sys
+import os
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -42,20 +42,34 @@ class StreamClient:
         @self.sio.on('error')
         def on_error(data):
             print(f"Error: {data['message']}")
+
+    def get_video_files(self, folder_path):
+        """Get all video files from the specified folder"""
+        video_extensions = ('.mp4', '.avi', '.mkv', '.mov', '.wmv')
+        video_files = []
+        
+        for file in os.listdir(folder_path):
+            if file.lower().endswith(video_extensions):
+                video_files.append(os.path.join(folder_path, file))
+                
+        return sorted(video_files)  # Sort files to ensure consistent order
     
     def start_streaming(self, video_source=None):
-        """Start streaming video from the specified source"""
+        """Start streaming videos from the specified source folder"""
         stream_config = config.get_stream_config()
         if video_source is None:
             video_source = stream_config['source_path']
             
-        cap = None
-        try:
-            # First try to open video source before connecting
-            cap = cv2.VideoCapture(video_source)
-            if not cap.isOpened():
-                raise Exception(f"Failed to open video source: {video_source}")
+        # Check if video_source is a directory
+        if os.path.isdir(video_source):
+            video_files = self.get_video_files(video_source)
+            if not video_files:
+                raise Exception(f"No video files found in directory: {video_source}")
+        else:
+            # If it's a single file, put it in a list
+            video_files = [video_source]
             
+        try:
             # Connect to processing server
             print(f"Connecting to {self.processing_server_url}")
             self.sio.connect(self.processing_server_url, wait_timeout=10)
@@ -63,48 +77,51 @@ class StreamClient:
             # Start stream
             self.sio.emit('start_stream', {'stream_id': self.stream_id})
             
-            print(f"Started streaming from {video_source}")
-            
             frame_delay = stream_config['frame_delay']
             frame_count = 0
             
-            while True:
-                # ret, frame = cap.read()
-                # if not ret:
-                #     print("End of video stream")
-                #     break
-                ret, frame = cap.read()
-                if not ret:
-                    print("End of video stream, restarting...")
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # 重置到视频开始
-                    ret, frame = cap.read()  # 重新读取第一帧
-                    if not ret:  # 如果还是失败，那么可能是视频文件损坏
-                        print("Failed to restart video stream")
-                        break
-                
-                # Encode frame
-                _, buffer = cv2.imencode('.jpg', frame)
-                img_base64 = base64.b64encode(buffer).decode('utf-8')
-                
-                # Send frame with timestamps
-                self.sio.emit('process_frame', {
-                    'stream_id': self.stream_id,
-                    'frame_id': frame_count,
-                    'timestamps': {
-                        'generated': time.time(),
-                    },
-                    'image': img_base64
-                })
-                
-                frame_count += 1
-                time.sleep(frame_delay)
+            while True:  # Outer loop for continuous folder processing
+                for video_file in video_files:
+                    print(f"Processing video: {video_file}")
+                    cap = cv2.VideoCapture(video_file)
+                    
+                    if not cap.isOpened():
+                        print(f"Failed to open video file: {video_file}")
+                        continue
+                    
+                    try:
+                        while True:
+                            ret, frame = cap.read()
+                            if not ret:
+                                print(f"Finished processing: {video_file}")
+                                break
+                            
+                            # Encode frame
+                            _, buffer = cv2.imencode('.jpg', frame)
+                            img_base64 = base64.b64encode(buffer).decode('utf-8')
+                            
+                            # Send frame with timestamps
+                            self.sio.emit('process_frame', {
+                                'stream_id': self.stream_id,
+                                'frame_id': frame_count,
+                                'timestamps': {
+                                    'generated': time.time(),
+                                },
+                                'image': img_base64
+                            })
+                            
+                            frame_count += 1
+                            time.sleep(frame_delay)
+                            
+                    finally:
+                        cap.release()
+                        
+                print("Finished processing all videos, restarting...")
                 
         except Exception as e:
             print(f"Streaming error: {e}")
         finally:
             self.stop_streaming()
-            if cap is not None and cap.isOpened():
-                cap.release()
     
     def stop_streaming(self):
         """Stop the stream and disconnect"""

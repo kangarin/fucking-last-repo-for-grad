@@ -2,7 +2,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Object Detection Streams</title>
+    <title>Object Detection Streams v2</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body {
@@ -97,7 +100,6 @@
         // Handle new detection results
         socket.on('detection_update', function(data) {
             const streamId = data.stream_id;
-            
             // Create or update stream container
             let streamContainer = document.getElementById(`stream-${streamId}`);
             if (!streamContainer) {
@@ -116,6 +118,7 @@
                 <div>Stream ID: ${streamId}</div>
                 <div>Frame ID: ${data.frame_id}</div>
                 <div>Generated: ${new Date(data.timestamps.generated * 1000).toISOString()}</div>
+                <div>Current Model: ${data.model}</div>
             `;
 
             // Update latency information
@@ -130,6 +133,12 @@
             // Frame info section
             const frameInfo = document.createElement('div');
             frameInfo.className = 'frame-info';
+            frameInfo.innerHTML = `
+                <div>Stream ID: ${streamId}</div>
+                <div>Frame ID: --</div>
+                <div>Generated: --</div>
+                <div>Current Model: --</div>
+            `;
             container.appendChild(frameInfo);
             
             // Latency info section

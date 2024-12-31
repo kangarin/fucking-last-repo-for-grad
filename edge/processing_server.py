@@ -180,7 +180,8 @@ class DetectionProcessor:
                     'stream_id': stream_id,
                     'frame_id': frame_id,
                     'timestamps': timestamps,
-                    'image': img_base64
+                    'image': img_base64,
+                    'model': f'yolov5{self.model_manager.current_model_name}'
                 })
                 
                 if response.status_code != 200:

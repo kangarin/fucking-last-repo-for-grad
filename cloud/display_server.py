@@ -56,7 +56,8 @@ def update_detection():
             'frame_id': data.get('frame_id'),
             'timestamps': timestamps,
             'latencies': latencies,
-            'image': data.get('image')
+            'image': data.get('image'),
+            'model': data.get('model'),
         }
         
         # Broadcast the update to all connected clients
