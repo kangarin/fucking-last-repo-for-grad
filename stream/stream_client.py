@@ -79,6 +79,7 @@ class StreamClient:
             
             frame_delay = stream_config['frame_delay']
             frame_count = 0
+            start_time = time.time()
             
             while True:  # Outer loop for continuous folder processing
                 for video_file in video_files:
@@ -89,8 +90,27 @@ class StreamClient:
                         print(f"Failed to open video file: {video_file}")
                         continue
                     
+                    # Get video properties
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    video_duration = total_frames / fps
+                    
                     try:
                         while True:
+                            # Calculate which frame we should be at based on elapsed time
+                            current_time = time.time()
+                            elapsed_time = current_time - start_time
+                            
+                            # Calculate the ideal frame number based on elapsed time
+                            ideal_frame = int(elapsed_time * fps)
+                            
+                            # If we're behind where we should be, skip frames to catch up
+                            current_frame = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+                            if ideal_frame > current_frame:
+                                # Skip to the ideal frame
+                                cap.set(cv2.CAP_PROP_POS_FRAMES, ideal_frame)
+                            
+                            # Read the frame
                             ret, frame = cap.read()
                             if not ret:
                                 print(f"Finished processing: {video_file}")
@@ -113,10 +133,15 @@ class StreamClient:
                             frame_count += 1
                             time.sleep(frame_delay)
                             
+                            # If we've reached the end of video duration, reset the start time
+                            if elapsed_time >= video_duration:
+                                start_time = time.time()
+                            
                     finally:
                         cap.release()
                         
                 print("Finished processing all videos, restarting...")
+                start_time = time.time()  # Reset start time for next iteration
                 
         except Exception as e:
             print(f"Streaming error: {e}")

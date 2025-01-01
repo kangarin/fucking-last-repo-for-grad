@@ -1,4 +1,3 @@
-websocket-client
 eventlet
 flask
 flask-socketio

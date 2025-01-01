@@ -20,5 +20,5 @@ edge:
 # Video stream configurations
 stream:
   source_path: 'data'
-  frame_delay: 0.1
+  frame_delay: 0.5
   default_id: 'test_stream_1'
