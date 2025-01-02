@@ -52,7 +52,8 @@ class ModelManager:
             'latency': 0,
             'queue_length': 0,
             'model_name': 's',
-            'avg_confidence': 0
+            'avg_confidence': 0,
+            'avg_size': 0
         }
         self.stats_lock = threading.Lock()
 
@@ -150,7 +151,7 @@ class DetectionProcessor:
         try:
             if stream_id not in self.active_streams:
                 return
-                
+            timestamps['start_processing'] = time.time()
             # Get current model and run inference
             model = self.model_manager.get_active_model()
             if model is not None:
@@ -162,6 +163,15 @@ class DetectionProcessor:
                     avg_conf = float(confidences.mean())  # 计算平均值
                 else:
                     avg_conf = 0.0  # 如果没有检测到物体，置信度为0
+
+                # 计算平均大小
+                if len(results.pred[0]) > 0: # 如果有检测到的物体
+                    boxes = results.pred[0][:, :4].cpu().numpy() # 提取边界框坐标
+                    sizes = (boxes[:, 2:] - boxes[:, :2]).mean(axis=0) 
+                    avg_size = sizes.mean() # 计算平均大小
+                else:
+                    avg_size = 0.0 # 如果没有检测到物体，大小为0
+
                 rendered_frame = results.render()[0]
                 
                 # Add processing completion timestamp
@@ -169,7 +179,7 @@ class DetectionProcessor:
 
                 # 更新统计信息
                 with self.model_manager.stats_lock:
-                    self.update_statistics(timestamps, avg_conf)
+                    self.update_statistics(timestamps, avg_conf, avg_size)
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -190,18 +200,20 @@ class DetectionProcessor:
         except Exception as e:
             print(f"Error processing frame: {e}")
 
-    def update_statistics(self, timestamps, avg_conf):
+    def update_statistics(self, timestamps, avg_conf, avg_size):
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
         self.model_manager.stats['model_name'] = self.model_manager.current_model_name
         self.model_manager.stats['avg_confidence'] = avg_conf
+        self.model_manager.stats['avg_size'] = avg_size
 
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
         f"Queue Length: {self.model_manager.stats['queue_length']}, "
         f"Model: yolov5{self.model_manager.stats['model_name']}, "
-        f"Avg Confidence: {self.model_manager.stats['avg_confidence']:.2f}"
+        f"Avg Confidence: {self.model_manager.stats['avg_confidence']:.2f}, "
+        f"Avg Size: {self.model_manager.stats['avg_size']:.2f}"
         )
     
     def stop(self):

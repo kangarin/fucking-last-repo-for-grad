@@ -82,6 +82,10 @@
             if (latencies) {
                 latencyInfo.innerHTML = `
                     <div class="latency-item">
+                        <span class="latency-title">Queueing Latency:</span>
+                        <span class="latency-value">${formatLatency(latencies.queueing_latency * 1000)} ms</span>
+                    </div>
+                    <div class="latency-item">
                         <span class="latency-title">Processing Latency:</span>
                         <span class="latency-value">${formatLatency(latencies.processing_latency * 1000)} ms</span>
                     </div>

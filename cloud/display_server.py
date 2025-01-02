@@ -43,7 +43,8 @@ def update_detection():
         
         # Calculate latencies
         latencies = {
-            'processing_latency': timestamps['processed'] - timestamps['received'],
+            'queueing_latency': timestamps['start_processing'] - timestamps['received'],
+            'processing_latency': timestamps['processed'] - timestamps['start_processing'],
             'transmission_latency': timestamps['displayed'] - timestamps['processed'],
             'end_to_end_latency': timestamps['displayed'] - timestamps['generated']
         }

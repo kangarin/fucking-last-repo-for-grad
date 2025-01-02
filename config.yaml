@@ -2,15 +2,15 @@
 cloud:
   display_server:
     host: '0.0.0.0'
-    port: 6001
-    url: 'http://0.0.0.0:6001'
+    port: 6011
+    url: 'http://0.0.0.0:6011'
 
 # Edge node configurations
 edge:
   processing_server:
     host: '0.0.0.0'
-    port: 6002
-    url: 'http://0.0.0.0:6002'
+    port: 6012
+    url: 'http://0.0.0.0:6012'
   
   models:
     default: 's'
