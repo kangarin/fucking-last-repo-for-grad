@@ -133,6 +133,7 @@ class DQNAgent:
         
         # Optimizer
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.learning_rate)
+        self.criterion = nn.HuberLoss(delta=1.0) 
         
         # Replay buffer
         self.memory = ReplayBuffer(10000)
@@ -337,13 +338,13 @@ class DQNAgent:
         # Compute current Q values
         current_q_values = self.policy_net(state_batch).gather(1, action_batch.unsqueeze(1))
         
-        # Compute next Q values
+        # Compute next Q 
         with torch.no_grad():
             next_q_values = self.target_net(next_state_batch).max(1)[0]
         expected_q_values = reward_batch + (self.gamma * next_q_values)
         
         # Compute loss and optimize
-        loss = nn.MSELoss()(current_q_values, expected_q_values.unsqueeze(1))
+        loss = loss = self.criterion(current_q_values, expected_q_values.unsqueeze(1))
         self.optimizer.zero_grad()
         loss.backward()
         
