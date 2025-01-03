@@ -1,4 +1,4 @@
-# processing_server.py
+# 一次性加载所有模型到内存，切换模型时直接从内存中获取模型
 import torch
 import cv2
 import numpy as np
@@ -31,14 +31,13 @@ socketio = SocketIO(app, async_mode='threading', ping_timeout=600)
 
 class ModelManager:
     def __init__(self):
-        self.current_model = None
-        self.next_model = None
+        self.models = {}  # 存储所有加载的模型
         self.current_model_name = None
-        self.next_model_name = None
         self.model_lock = threading.Lock()
         self.models_config = config.get_models_config()
         self.models_dir = Path(self.models_config['weights_dir'])
-        # 添加每个模型对应的mAP值
+        
+        # mAP values for each model
         self.model_maps = {
             'n': 25.7,  # YOLOv5n
             's': 37.4,  # YOLOv5s
@@ -46,7 +45,7 @@ class ModelManager:
             'l': 49.0,  # YOLOv5l
             'x': 50.7   # YOLOv5x
         }
-        self.current_map = None  # 当前模型的mAP
+        self.current_map = None
         self.stats = {
             'accuracy': 0,
             'latency': 0,
@@ -56,44 +55,57 @@ class ModelManager:
             'avg_size': 0
         }
         self.stats_lock = threading.Lock()
-
-    def load_model(self, model_name):
-        weight_file = self.models_dir / f'yolov5{model_name}.pt'
-        if not weight_file.exists():
-            raise ValueError(f"Model weights not found: {weight_file}")
-            
-        model = attempt_load(weight_file)
-        model = AutoShape(model)
-        if torch.cuda.is_available():
-            model = model.cuda()
-            
-        return model
         
+        # 初始化时加载所有模型
+        self._load_all_models()
+        
+        # 设置默认模型
+        default_model = self.models_config['default']
+        self.current_model_name = default_model
+        self.current_map = self.model_maps.get(default_model, 0)
+
+    def _load_all_models(self):
+        """一次性加载所有模型到内存"""
+        print("Loading all YOLOv5 models...")
+        for model_size in self.models_config['allowed_sizes']:
+            try:
+                weight_file = self.models_dir / f'yolov5{model_size}.pt'
+                if not weight_file.exists():
+                    print(f"Warning: Model weights not found: {weight_file}")
+                    continue
+                    
+                print(f"Loading YOLOv5{model_size}...")
+                model = attempt_load(weight_file)
+                model = AutoShape(model)
+                if torch.cuda.is_available():
+                    model = model.cuda()
+                
+                self.models[model_size] = model
+                print(f"Successfully loaded YOLOv5{model_size}")
+                
+            except Exception as e:
+                print(f"Failed to load YOLOv5{model_size}: {e}")
+                
+        print("Finished loading all models")
+
     def switch_model(self, new_model_name):
+        """切换到指定的模型"""
         if new_model_name not in self.models_config['allowed_sizes']:
             raise ValueError(f"Invalid model size: {new_model_name}")
             
-        print(f"Preparing to switch to model: yolov5{new_model_name}")
-        try:
-            new_model = self.load_model(new_model_name)
-            with self.model_lock:
-                self.next_model = new_model
-                self.next_model_name = new_model_name
-            return True
-        except Exception as e:
-            print(f"Failed to load model: {e}")
-            return False
+        if new_model_name not in self.models:
+            raise ValueError(f"Model YOLOv5{new_model_name} not loaded")
             
-    def get_active_model(self):
         with self.model_lock:
-            if self.next_model is not None:
-                self.current_model = self.next_model
-                self.current_model_name = self.next_model_name
-                self.current_map = self.model_maps.get(self.current_model_name, 0)
-                self.next_model = None
-                self.next_model_name = None
-                print("Model switched successfully")
-            return self.current_model
+            self.current_model_name = new_model_name
+            self.current_map = self.model_maps.get(new_model_name, 0)
+            print(f"Switched to model: YOLOv5{new_model_name}")
+        return True
+
+    def get_active_model(self):
+        """获取当前活动的模型"""
+        with self.model_lock:
+            return self.models.get(self.current_model_name)
 
 class DetectionProcessor:
     def __init__(self):
