@@ -50,6 +50,14 @@ class Config:
     def get_models_config(self):
         """Get models configuration"""
         return self._config['edge']['models']
+    
+    def get_queue_max_length(self):
+        """Get maximum queue length for dynamic stream"""
+        return self._config['queue']['max_length']
+    
+    def get_queue_threshold_length(self):
+        """Get queue length threshold for model switching"""
+        return self._config['queue']['threshold_length']
 
 # Create a singleton instance
 config = Config()

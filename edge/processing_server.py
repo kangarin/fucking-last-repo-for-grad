@@ -102,8 +102,9 @@ class DetectionProcessor:
         display_config = config.get_cloud_display_config()
         self.display_server_url = display_config['url']
         
-        # Initialize frame queue with maxlen=10
-        self.frame_queue = deque(maxlen=10)
+        # Initialize frame queue with maxlen
+        max_queue_length = config.get_queue_max_length()
+        self.frame_queue = deque(maxlen=max_queue_length)
         self.queue_lock = threading.Lock()
         
         # Initialize processing thread

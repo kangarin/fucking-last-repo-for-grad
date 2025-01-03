@@ -51,31 +51,49 @@ class LSTMDQN(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.lstm_layers = lstm_layers
+
+        self.input_bn = nn.BatchNorm1d(input_size)
         
         # LSTM层处理时间序列
         self.lstm = nn.LSTM(
             input_size=input_size,
             hidden_size=hidden_size,
             num_layers=lstm_layers,
-            batch_first=True
+            batch_first=True,
+            dropout=0.1
         )
         
         # 全连接层处理LSTM的输出
         self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.bn1 = nn.BatchNorm1d(hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
+        self.bn2 = nn.BatchNorm1d(hidden_size // 2)
+        self.fc3 = nn.Linear(hidden_size // 2, output_size)
+        
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.1)
-        self.fc2 = nn.Linear(hidden_size, output_size)
+        self.dropout = nn.Dropout(0.2)
     
     def forward(self, x):
-        # x shape: (batch_size, seq_len, input_size)
+        batch_size, seq_len, _ = x.size()
+        x = x.view(-1, self.input_size)
+        x = self.input_bn(x)
+        x = x.view(batch_size, seq_len, -1)
+        
         lstm_out, _ = self.lstm(x)
-        # 取最后一个时间步的输出
         last_output = lstm_out[:, -1, :]
         
         x = self.fc1(last_output)
+        x = self.bn1(x)
         x = self.relu(x)
         x = self.dropout(x)
+        
         x = self.fc2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc3(x)
         return x
 
 class ReplayBuffer:
@@ -107,11 +125,11 @@ class DQNAgent:
         
         # Training parameters
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.batch_size = 16
-        self.gamma = 0.99
-        self.epsilon = 0.9
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.01
+        self.batch_size = 32
+        self.gamma = 0.95
+        self.epsilon = 1.0
+        self.epsilon_decay = 0.999
+        self.epsilon_min = 0.1
         self.learning_rate = 1e-4
         self.target_update = 10
         self.steps = 0
@@ -128,6 +146,9 @@ class DQNAgent:
         self.memory = ReplayBuffer(10000)
         
         self.current_model = 's'  # 默认模型
+
+        self.queue_max_length = config.get_queue_max_length()
+        self.queue_threshold_length = config.get_queue_threshold_length()
         
     def normalize_state(self, state):
         """Normalize individual state metrics to [0,1] range"""
@@ -135,11 +156,11 @@ class DQNAgent:
             # 准确率归一化 (0-100 -> 0-1)
             norm_accuracy = state['accuracy'] / 100.0
             
-            # 延迟归一化 (使用1/(1+x)映射到(0,1))
-            norm_latency = 1 / (1 + max(state['latency'], 1e-6))
+            # 延迟
+            norm_latency = state['latency']
             
-            # 队列长度归一化
-            norm_queue = 1 / (1 + max(state['queue_length'], 1))
+            # 队列长度
+            norm_queue = state['queue_length'] / 20.0  # 假设最大值为20
             
             # 置信度已经在0-1范围
             norm_confidence = state['avg_confidence']
@@ -198,33 +219,69 @@ class DQNAgent:
         return torch.FloatTensor(sequence).unsqueeze(0).to(self.device)
     
     def compute_reward(self, states):
-        """Calculate reward based on normalized metrics"""
-        if not states:
-            return 0.0
-        
-        try:
-            # 对所有状态进行归一化
-            norm_states = [self.normalize_state(s) for s in states]
-            if None in norm_states:
+            """
+            动态权重的奖励函数：
+            - 队列短时重视准确率和置信度
+            - 队列长时重视延迟
+            """
+            if not states:
                 return 0.0
             
-            # 计算平均归一化指标
-            avg_accuracy = np.mean([s['accuracy'] for s in norm_states])
-            avg_latency = np.mean([s['latency'] for s in norm_states])
-            avg_queue = np.mean([s['queue_length'] for s in norm_states])
-            avg_confidence = np.mean([s['avg_confidence'] for s in norm_states])
-            
-            # 计算加权奖励
-            reward = (0.4 * avg_accuracy +    # 准确率
-                     0.3 * avg_latency +      # 延迟
-                     0.2 * avg_queue +        # 队列长度
-                     0.1 * avg_confidence)    # 置信度
-            
-            return float(reward)
-            
-        except Exception as e:
-            logger.error(f"Error computing reward: {e}")
-            return 0.0
+            try:
+                # 获取原始指标的平均值
+                avg_queue = np.mean([s['queue_length'] for s in states])
+                avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
+                avg_confidence = np.mean([s['avg_confidence'] for s in states])
+                avg_latency = np.mean([s['latency'] for s in states])
+                
+                # 计算队列压力系数 (0到1之间)
+                queue_pressure = min(1.0, avg_queue / self.queue_max_length)
+                
+                # 根据队列压力动态分配权重
+                # 队列压力低时: 准确率权重高，延迟权重低
+                # 队列压力高时: 准确率权重低，延迟权重高
+                accuracy_weight = 1.0 - queue_pressure
+                latency_weight = queue_pressure
+                
+                # 1. 性能得分
+                # 准确率和置信度得分
+                accuracy_score = avg_accuracy * 0.5 + avg_confidence * 0.5
+                # 延迟得分
+                latency_score = np.exp(-avg_latency)
+                
+                # 2. 根据队列压力计算加权得分
+                total_reward = (accuracy_weight * accuracy_score + 
+                            latency_weight * latency_score)
+                
+                # 3. 额外的队列积压惩罚（当队列超过阈值时）
+                queue_penalty = 0.0
+                if avg_queue > self.queue_threshold_length:
+                    queue_penalty = -0.2 * (avg_queue - self.queue_threshold_length)
+                    total_reward += queue_penalty
+                
+                # 4. 额外的精度奖励（当队列很短时）
+                accuracy_bonus = 0.0
+                if avg_queue < self.queue_threshold_length and accuracy_score > 0.5:
+                    accuracy_bonus_scale = self.queue_threshold_length - avg_queue
+                    accuracy_bonus = (accuracy_score - 0.5) * accuracy_bonus_scale
+                    total_reward += accuracy_bonus
+
+                # 5. 裁剪最终奖励到合理范围
+                total_reward = np.clip(total_reward, -2.0, 2.0)
+                
+                logger.info(f"""Reward breakdown:
+                    Accuracy: {accuracy_score:.3f} (Weight: {accuracy_weight:.2f})
+                    Latency: {latency_score:.3f} (Weight: {latency_weight:.2f})
+                    Queue Penalty: {queue_penalty:.3f}
+                    Accuracy Bonus: {accuracy_bonus:.3f}
+                    Queue: {queue_pressure:.3f} (Avg Queue: {avg_queue:.1f})
+                    Total Reward: {total_reward:.3f}""")
+                
+                return float(total_reward)
+                    
+            except Exception as e:
+                logger.error(f"Error computing reward: {e}")
+                return 0.0
     
     def select_action(self):
         """Select next model using epsilon-greedy policy"""
@@ -252,6 +309,7 @@ class DQNAgent:
         reward_states = self.state_buffer.get_reward_window(self.decision_interval)
         if reward_states:
             reward = self.compute_reward(reward_states)
+            logger.info(f"Reward: {reward:.3f}")
             if len(observation) >= self.observation_window:
                 # Store experience in memory
                 prev_observation = self.state_buffer.get_observation(self.observation_window)[:-1]
