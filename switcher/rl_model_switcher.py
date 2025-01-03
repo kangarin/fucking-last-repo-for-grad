@@ -1,554 +1,438 @@
 import time
-import requests
+import random
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from socketio import Client
 from collections import deque, namedtuple
-import random
+import requests
+from socketio import Client
 from pathlib import Path
 import sys
-import threading
-from queue import Queue
 import logging
-import copy
-from threading import Lock
-import traceback
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 from config import config
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('model_switcher.log'),
-        logging.StreamHandler()
-    ]
-)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# 定义经验回放的数据结构
-Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'))
+# Define experience tuple structure
+Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state'])
 
-class MovingAverage:
-    """实现移动平均来平滑指标"""
-    def __init__(self, window_size=100):
-        self.window_size = window_size
-        self.values = deque(maxlen=window_size)
-        self.sum = 0
-        self.lock = Lock()
-
-    def update(self, value):
-        with self.lock:
-            if len(self.values) == self.window_size:
-                self.sum -= self.values[0]
-            self.values.append(value)
-            self.sum += value
-
-    def get(self):
-        with self.lock:
-            if not self.values:
-                return 0
-            return self.sum / len(self.values)
+class GlobalStateBuffer:
+    def __init__(self, max_window_size=60):
+        """维护一个固定大小的全局状态窗口"""
+        self.max_window_size = max_window_size
+        self.buffer = deque(maxlen=max_window_size)
+        
+    def add_state(self, state):
+        """添加新状态到buffer"""
+        self.buffer.append(state)
+    
+    def get_observation(self, window_size=10):
+        """获取最近window_size个状态作为观测值"""
+        if len(self.buffer) < window_size:
+            return None
+        return list(self.buffer)[-window_size:]
+    
+    def get_reward_window(self, decision_interval=5):
+        """获取用于计算奖励的状态窗口"""
+        if len(self.buffer) < decision_interval:
+            return None
+        return list(self.buffer)[-decision_interval:]
 
 class LSTMDQN(nn.Module):
-    def __init__(self, input_dim, hidden_dim, action_dim, num_layers=1):
+    def __init__(self, input_size, hidden_size, lstm_layers=1, output_size=5):
         super(LSTMDQN, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.lstm_layers = lstm_layers
         
-        # LSTM层
+        # LSTM层处理时间序列
         self.lstm = nn.LSTM(
-            input_size=input_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=0.1
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=lstm_layers,
+            batch_first=True
         )
         
-        # 全连接层
-        self.fc = nn.Sequential(
-            nn.Linear(hidden_dim, 64),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, action_dim)
-        )
-        
-        # 批归一化层
-        self.input_norm = nn.BatchNorm1d(input_dim)
+        # 全连接层处理LSTM的输出
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.1)
+        self.fc2 = nn.Linear(hidden_size, output_size)
     
     def forward(self, x):
-        # 确保输入维度正确 [batch_size, seq_len, features]
-        if len(x.size()) == 2:
-            x = x.unsqueeze(0)
-        
-        # 对输入进行归一化
-        batch_size, seq_len, features = x.size()
-        x_reshaped = x.view(-1, features)
-        x_normalized = self.input_norm(x_reshaped)
-        x = x_normalized.view(batch_size, seq_len, features)
-        
-        # LSTM前向传播
+        # x shape: (batch_size, seq_len, input_size)
         lstm_out, _ = self.lstm(x)
-        
-        # 获取最后一个时间步的输出
+        # 取最后一个时间步的输出
         last_output = lstm_out[:, -1, :]
         
-        # 通过全连接层
-        output = self.fc(last_output)
-        return output
+        x = self.fc1(last_output)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
 
-class StatsCollector:
-    def __init__(self, http_url, sampling_interval=1):
-        self.http_url = http_url
-        self.sampling_interval = sampling_interval
-        self.stats_queue = deque(maxlen=10)
-        self._stop_event = threading.Event()
-        self.thread = None
-        self.lock = Lock()
-        self.session = requests.Session()
-        self.retry_count = 3
-        self.retry_delay = 1
-        
-    def start(self):
-        if self.thread is None or not self.thread.is_alive():
-            self._stop_event.clear()
-            self.thread = threading.Thread(target=self._collect_loop, name="StatsCollector")
-            self.thread.daemon = True
-            self.thread.start()
-        
-    def stop(self):
-        self._stop_event.set()
-        if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=5)
-            if self.thread.is_alive():
-                logging.warning("Stats collector thread did not stop gracefully")
-        self.session.close()
-            
-    def _collect_loop(self):
-        logging.info("Stats collector started")
-        consecutive_errors = 0
-        
-        while not self._stop_event.is_set():
-            try:
-                for attempt in range(self.retry_count):
-                    try:
-                        response = self.session.get(
-                            f"{self.http_url}/get_stats",
-                            timeout=5
-                        )
-                        response.raise_for_status()
-                        stats = response.json().get('stats')
-                        
-                        if stats:
-                            with self.lock:
-                                self.stats_queue.append({
-                                    'timestamp': time.time(),
-                                    'latency': float(stats['latency']),
-                                    'accuracy': float(stats['accuracy']),
-                                    'queue_length': int(stats.get('queue_length', 0)),
-                                    'model_name': stats.get('model_name', '')
-                                })
-                            consecutive_errors = 0
-                            break
-                    except Exception as e:
-                        if attempt < self.retry_count - 1:
-                            time.sleep(self.retry_delay)
-                        else:
-                            raise e
-                            
-            except Exception as e:
-                consecutive_errors += 1
-                logging.error(f"Error collecting stats: {e}")
-                if consecutive_errors >= 5:
-                    logging.error("Too many consecutive errors, stopping collector")
-                    self._stop_event.set()
-                    break
-            
-            time.sleep(self.sampling_interval)
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.buffer = deque(maxlen=capacity)
     
-    def get_recent_stats(self, window_size):
-        with self.lock:
-            stats = list(self.stats_queue)[-window_size:] if self.stats_queue else []
-            return copy.deepcopy(stats)
+    def push(self, state, action, reward, next_state):
+        self.buffer.append(Experience(state, action, reward, next_state))
+    
+    def sample(self, batch_size):
+        return random.sample(self.buffer, batch_size)
+    
+    def __len__(self):
+        return len(self.buffer)
 
-class RLModelSwitcher:
+class DQNAgent:
+    def __init__(self, state_buffer, observation_window=10, decision_interval=5):
+        self.state_buffer = state_buffer
+        self.observation_window = observation_window
+        self.decision_interval = decision_interval
+        self.model_names = ['n', 's', 'm', 'l', 'x']
+        self.model_to_idx = {model: idx for idx, model in enumerate(self.model_names)}
+        
+        # 网络参数
+        self.feature_size = 5  # 每个状态的特征数
+        self.hidden_size = 64
+        self.output_size = len(self.model_names)
+        
+        # Training parameters
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = 16
+        self.gamma = 0.99
+        self.epsilon = 0.9
+        self.epsilon_decay = 0.995
+        self.epsilon_min = 0.01
+        self.learning_rate = 1e-4
+        self.target_update = 10
+        self.steps = 0
+        
+        # Initialize networks
+        self.policy_net = LSTMDQN(self.feature_size, self.hidden_size, output_size=self.output_size).to(self.device)
+        self.target_net = LSTMDQN(self.feature_size, self.hidden_size, output_size=self.output_size).to(self.device)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        
+        # Optimizer
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.learning_rate)
+        
+        # Replay buffer
+        self.memory = ReplayBuffer(10000)
+        
+        self.current_model = 's'  # 默认模型
+        
+    def normalize_state(self, state):
+        """Normalize individual state metrics to [0,1] range"""
+        try:
+            # 准确率归一化 (0-100 -> 0-1)
+            norm_accuracy = state['accuracy'] / 100.0
+            
+            # 延迟归一化 (使用1/(1+x)映射到(0,1))
+            norm_latency = 1 / (1 + max(state['latency'], 1e-6))
+            
+            # 队列长度归一化
+            norm_queue = 1 / (1 + max(state['queue_length'], 1))
+            
+            # 置信度已经在0-1范围
+            norm_confidence = state['avg_confidence']
+            
+            # 目标大小归一化 (假设最大值为200)
+            norm_size = min(1.0, state['avg_size'] / 200.0)
+            
+            return {
+                'accuracy': norm_accuracy,
+                'latency': norm_latency,
+                'queue_length': norm_queue,
+                'avg_confidence': norm_confidence,
+                'avg_size': norm_size
+            }
+        except Exception as e:
+            logger.error(f"Error normalizing state: {e}")
+            return None
+
+    def state_to_tensor(self, states):
+        """Convert states sequence to tensor"""
+        if not states:
+            return None
+            
+        # 确保状态序列长度正确
+        if len(states) < self.observation_window:
+            padding = [states[0]] * (self.observation_window - len(states))
+            states = padding + states
+        elif len(states) > self.observation_window:
+            states = states[-self.observation_window:]
+            
+        # 构建序列数据
+        sequence = []
+        for state in states:
+            norm_state = self.normalize_state(state)
+            if norm_state is None:
+                return None
+            
+            features = [
+                norm_state['accuracy'],
+                norm_state['latency'],
+                norm_state['queue_length'],
+                norm_state['avg_confidence'],
+                norm_state['avg_size']
+            ]
+            sequence.append(features)
+            
+        # 转换为tensor，形状为(1, seq_len, feature_size)
+        return torch.FloatTensor(sequence).unsqueeze(0).to(self.device)
+    
+    def compute_reward(self, states):
+        """Calculate reward based on normalized metrics"""
+        if not states:
+            return 0.0
+        
+        try:
+            # 对所有状态进行归一化
+            norm_states = [self.normalize_state(s) for s in states]
+            if None in norm_states:
+                return 0.0
+            
+            # 计算平均归一化指标
+            avg_accuracy = np.mean([s['accuracy'] for s in norm_states])
+            avg_latency = np.mean([s['latency'] for s in norm_states])
+            avg_queue = np.mean([s['queue_length'] for s in norm_states])
+            avg_confidence = np.mean([s['avg_confidence'] for s in norm_states])
+            
+            # 计算加权奖励
+            reward = (0.4 * avg_accuracy +    # 准确率
+                     0.3 * avg_latency +      # 延迟
+                     0.2 * avg_queue +        # 队列长度
+                     0.1 * avg_confidence)    # 置信度
+            
+            return float(reward)
+            
+        except Exception as e:
+            logger.error(f"Error computing reward: {e}")
+            return 0.0
+    
+    def select_action(self):
+        """Select next model using epsilon-greedy policy"""
+        observation = self.state_buffer.get_observation(self.observation_window)
+        if not observation:
+            return random.choice(self.model_names)
+        
+        state_tensor = self.state_to_tensor(observation)
+        if state_tensor is None:
+            return random.choice(self.model_names)
+        
+        # Epsilon-greedy action selection
+        if random.random() > self.epsilon:
+            with torch.no_grad():
+                q_values = self.policy_net(state_tensor)
+                action_idx = q_values.max(1)[1].item()
+                selected_model = self.model_names[action_idx]
+        else:
+            selected_model = random.choice(self.model_names)
+        
+        # Decay epsilon
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        
+        # Get reward for previous action if available
+        reward_states = self.state_buffer.get_reward_window(self.decision_interval)
+        if reward_states:
+            reward = self.compute_reward(reward_states)
+            if len(observation) >= self.observation_window:
+                # Store experience in memory
+                prev_observation = self.state_buffer.get_observation(self.observation_window)[:-1]
+                prev_state_tensor = self.state_to_tensor(prev_observation)
+                if prev_state_tensor is not None:
+                    self.memory.push(
+                        prev_state_tensor,
+                        self.model_to_idx[self.current_model],
+                        reward,
+                        state_tensor
+                    )
+                    # Train the network
+                    self.optimize_model()
+        
+        self.current_model = selected_model
+        return selected_model
+    
+    def optimize_model(self):
+        """Train the DQN"""
+        if len(self.memory) < self.batch_size:
+            return
+        
+        # Sample batch
+        experiences = self.memory.sample(self.batch_size)
+        batch = Experience(*zip(*experiences))
+        
+        # Prepare batch tensors
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.tensor(batch.action, device=self.device)
+        reward_batch = torch.tensor(batch.reward, device=self.device)
+        next_state_batch = torch.cat(batch.next_state)
+        
+        # Compute current Q values
+        current_q_values = self.policy_net(state_batch).gather(1, action_batch.unsqueeze(1))
+        
+        # Compute next Q values
+        with torch.no_grad():
+            next_q_values = self.target_net(next_state_batch).max(1)[0]
+        expected_q_values = reward_batch + (self.gamma * next_q_values)
+        
+        # Compute loss and optimize
+        loss = nn.MSELoss()(current_q_values, expected_q_values.unsqueeze(1))
+        self.optimizer.zero_grad()
+        loss.backward()
+        
+        # Gradient clipping
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
+        
+        self.optimizer.step()
+        
+        # Update target network
+        self.steps += 1
+        logger.info(f"Step: {self.steps}, Loss: {loss.item()}")
+        if self.steps % self.target_update == 0:
+            self.target_net.load_state_dict(self.policy_net.state_dict())
+
+class ModelSwitcher:
     def __init__(self):
         self.sio = Client()
         processing_config = config.get_edge_processing_config()
         self.processing_server_url = processing_config['url']
         self.http_url = self.processing_server_url
         
-        models_config = config.get_models_config()
-        self.allowed_models = models_config['allowed_sizes']
+        # 初始化状态管理和DQN代理
+        self.state_buffer = GlobalStateBuffer()
+        self.agent = DQNAgent(self.state_buffer)
         
-        # 启动统计数据收集器
-        self.stats_collector = StatsCollector(self.http_url, sampling_interval=1)
+        # 决策相关参数
+        self.decision_interval = 5  # 决策周期(秒)
+        self.last_decision_time = time.time()
         
-        # RL parameters
-        self.models_by_performance = ['n', 's', 'm', 'l', 'x']
-        self.window_size = 5
-        self.input_dim = 3  # [latency, accuracy, queue_length]
-        self.hidden_dim = 64
-        self.n_actions = len(self.models_by_performance)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # 创建模型和优化器
-        self._create_networks()
-        
-        # 性能指标跟踪
-        self.avg_reward = MovingAverage(100)
-        self.avg_loss = MovingAverage(100)
-        
-        # 训练参数
-        self.batch_size = 16
-        self.gamma = 0.99
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.995
-        self.epsilon_min = 0.05
-        self.target_update = 10
-        self.decision_interval = 30
-        self.max_gradient_norm = 1.0
-        
-        # 经验回放
-        self.memory = deque(maxlen=10000)
-        self.min_memory_size = 16  
-        
-        # 训练状态
-        self.steps_done = 0
-        self.train_iteration = 0
-        self.last_save_time = time.time()
-        self.save_interval = 3600
-        
-        # 模型切换控制
-        self.last_switch_time = 0
-        self.min_switch_interval = 30
-        self.switch_cooldown = 10
-        self.switch_lock = Lock()
-        
-        # Socket.IO事件设置
+        # 设置Socket.IO事件处理
         self.setup_socket_events()
-
-    def _create_networks(self):
-        self.policy_net = LSTMDQN(
-            input_dim=self.input_dim,
-            hidden_dim=self.hidden_dim,
-            action_dim=self.n_actions
-        ).to(self.device)
-        
-        self.target_net = LSTMDQN(
-            input_dim=self.input_dim,
-            hidden_dim=self.hidden_dim,
-            action_dim=self.n_actions
-        ).to(self.device)
-        
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
-        
-        try:
-            checkpoint = torch.load('model_switcher_checkpoint.pth')
-            self.policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
-            self.target_net.load_state_dict(checkpoint['target_net_state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            self.epsilon = checkpoint['epsilon']
-            self.steps_done = checkpoint['steps_done']
-            logging.info("Loaded previous model checkpoint")
-        except Exception as e:
-            logging.warning(f"No previous model found or loading failed: {e}")
     
     def setup_socket_events(self):
+        """设置Socket.IO事件处理器"""
         @self.sio.event
         def connect():
-            logging.info(f"Connected to processing server: {self.processing_server_url}")
+            logger.info(f"Connected to processing server: {self.processing_server_url}")
             
         @self.sio.event
         def connect_error(data):
-            logging.error(f"Connection error: {data}")
+            logger.error(f"Connection error: {data}")
             
         @self.sio.event
         def disconnect():
-            logging.info("Disconnected from processing server")
+            logger.info("Disconnected from processing server")
             
         @self.sio.on('model_switched')
         def on_model_switched(data):
-            logging.info(f"Model successfully switched to: {data['model_name']}")
+            logger.info(f"Model successfully switched to: {data['model_name']}")
             
         @self.sio.on('error')
         def on_error(data):
-            logging.error(f"Error: {data['message']}")
+            logger.error(f"Error: {data['message']}")
 
     def connect_to_server(self):
-        for attempt in range(3):
-            try:
-                logging.info(f"Connecting to {self.processing_server_url}")
-                self.sio.connect(self.processing_server_url, wait_timeout=10)
-                return True
-            except Exception as e:
-                logging.error(f"Connection attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    time.sleep(2)
-        return False
-
-    def get_state(self):
-        recent_stats = self.stats_collector.get_recent_stats(self.window_size)
-        
-        if not recent_stats:
-            return torch.zeros(self.window_size, self.input_dim, device=self.device)
-        
-        sequence = []
-        for stats in recent_stats:
-            sequence.append([
-                stats['latency'],
-                stats['accuracy'],
-                stats['queue_length']
-            ])
-            
-        while len(sequence) < self.window_size:
-            if sequence:
-                sequence.append(sequence[-1])
-            else:
-                sequence.append([0, 0, 0])
-            
-        sequence = np.array(sequence, dtype=np.float32)
-        if len(sequence) > 0:
-            # 使用更稳定的归一化方法
-            mean = np.mean(sequence, axis=0, keepdims=True)
-            std = np.std(sequence, axis=0, keepdims=True) + 1e-8
-            sequence = (sequence - mean) / std
-            
-        return torch.tensor(sequence, dtype=torch.float32, device=self.device)
-
-    def get_reward(self, current_stats, prev_stats):
-        if not current_stats or not prev_stats:
-            return torch.tensor([[-0.1]], device=self.device)
-            
+        """连接到处理服务器"""
         try:
-            eps = 1e-8
-            
-            # 计算相对变化
-            latency_change = (prev_stats['latency'] - current_stats['latency']) / (prev_stats['latency'] + eps)
-            accuracy_change = (current_stats['accuracy'] - prev_stats['accuracy']) / (prev_stats['accuracy'] + eps)
-            queue_change = -(current_stats['queue_length'] - prev_stats['queue_length']) / (max(prev_stats['queue_length'], 1))
-            
-            # 归一化并限制范围
-            latency_score = np.clip(latency_change, -1, 1)
-            accuracy_score = np.clip(accuracy_change, -1, 1)
-            queue_score = np.clip(queue_change, -1, 1)
-            
-            # 加权计算奖励
-            reward = (
-                0.4 * latency_score +
-                0.4 * accuracy_score +
-                0.2 * queue_score
-            )
-            
-            # 模型切换惩罚
-            if current_stats['model_name'] != prev_stats['model_name']:
-                reward = reward - 0.1
-                
-            reward = float(np.clip(reward, -1, 1))
-            return torch.tensor([[reward]], dtype=torch.float32, device=self.device)
-            
-        except Exception as e:
-            logging.error(f"Error calculating reward: {e}\n{traceback.format_exc()}")
-            return torch.tensor([[-0.1]], device=self.device)
-
-    def choose_action(self, state):
-        if random.random() < self.epsilon:
-            return random.randrange(self.n_actions)
-        
-        with torch.no_grad():
-            state = state.unsqueeze(0) if len(state.size()) == 2 else state
-            q_values = self.policy_net(state)
-            return q_values.squeeze(0).max(0)[1].item()
-
-    def can_switch_model(self):
-        current_time = time.time()
-        with self.switch_lock:
-            if current_time - self.last_switch_time < self.min_switch_interval:
-                return False
+            logger.info(f"Connecting to {self.processing_server_url}")
+            self.sio.connect(self.processing_server_url, wait_timeout=10)
             return True
+        except Exception as e:
+            logger.error(f"Failed to connect to server: {e}")
+            return False
+
+    def get_current_stats(self):
+        """获取当前系统状态"""
+        try:
+            response = requests.get(f"{self.http_url}/get_stats")
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('stats')
+            else:
+                logger.error(f"Failed to get stats. Status code: {response.status_code}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return None
 
     def switch_model(self, model_name):
-        with self.switch_lock:
-            try:
-                if not self.sio.connected and not self.connect_to_server():
-                    return False
-                current_time = time.time()
-                if current_time - self.last_switch_time < self.min_switch_interval:
-                    return False
-                    
-                self.sio.emit('switch_model', {'model_name': model_name})
-                self.last_switch_time = current_time
-                time.sleep(self.switch_cooldown)
-                return True
-            except Exception as e:
-                logging.error(f"Error switching model: {e}")
-                return False
-
-    def optimize_model(self):
-        """训练LSTM-DQN网络"""
-        if len(self.memory) < self.min_memory_size:
-            return
-            
+        """向处理服务器发送模型切换请求"""
         try:
-            transitions = random.sample(self.memory, self.batch_size)
-            batch = Transition(*zip(*transitions))
+            if not self.sio.connected:
+                if not self.connect_to_server():
+                    return False
             
-            # 将数据转移到正确的设备并确保维度正确
-            state_batch = torch.stack(batch.state).to(self.device)  # [batch_size, seq_len, features]
-            action_batch = torch.tensor(batch.action, device=self.device)  # [batch_size]
-            reward_batch = torch.cat([r for r in batch.reward]).to(self.device)  # [batch_size]
-            next_state_batch = torch.stack(batch.next_state).to(self.device)  # [batch_size, seq_len, features]
-            
-            # 计算当前Q值
-            current_q_values = self.policy_net(state_batch)  # [batch_size, n_actions]
-            state_action_values = current_q_values.gather(1, action_batch.unsqueeze(1))  # [batch_size, 1]
-
-            # 计算下一状态的最大Q值
-            with torch.no_grad():
-                next_q_values = self.target_net(next_state_batch)  # [batch_size, n_actions]
-                next_state_values = next_q_values.max(1)[0]  # [batch_size]
-                expected_state_action_values = (next_state_values * self.gamma) + reward_batch  # [batch_size]
-                expected_state_action_values = expected_state_action_values.unsqueeze(1)  # [batch_size, 1]
-
-            # 计算损失
-            criterion = nn.SmoothL1Loss()
-            loss = criterion(state_action_values, expected_state_action_values)
-            
-            # 优化模型
-            self.optimizer.zero_grad()
-            loss.backward()
-            
-            # 梯度裁剪
-            torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), self.max_gradient_norm)
-            self.optimizer.step()
-            
-            # 更新性能指标
-            self.avg_loss.update(loss.item())
-            
-            # 定期保存模型
-            current_time = time.time()
-            if current_time - self.last_save_time > self.save_interval:
-                self.save_model()
-                self.last_save_time = current_time
-            
+            self.sio.emit('switch_model', {'model_name': model_name})
+            return True
         except Exception as e:
-            logging.error(f"Error in optimize_model: {e}\n{traceback.format_exc()}")
-
-    def save_model(self):
-        try:
-            torch.save({
-                'policy_net_state_dict': self.policy_net.state_dict(),
-                'target_net_state_dict': self.target_net.state_dict(),  # 保存target网络状态
-                'optimizer_state_dict': self.optimizer.state_dict(),
-                'epsilon': self.epsilon,
-                'steps_done': self.steps_done
-            }, 'model_switcher_checkpoint.pth')
-            logging.info("Model saved successfully")
-        except Exception as e:
-            logging.error(f"Error saving model: {e}")
+            logger.error(f"Error switching model: {e}")
+            return False
 
     def adaptive_switch_loop(self):
-        """主循环"""
+        """使用LSTM-DQN进行自适应模型切换"""
         if not self.connect_to_server():
-            logging.error("Failed to connect to processing server")
+            logger.error("Failed to connect to processing server")
             return
             
-        logging.info(f"Starting RL-based adaptive model switching loop on {self.device}")
+        logger.info(f"Starting LSTM-DQN based model switching loop with {self.decision_interval} second interval")
         
-        # 启动统计数据收集器
-        self.stats_collector.start()
-        
-        prev_stats = None
-        prev_state = None
-        prev_action = None
-        
-        try:
-            while True:
-                try:
-                    # 获取当前状态序列
-                    current_state = self.get_state()
-                    current_stats = self.stats_collector.get_recent_stats(1)
-                    if not current_stats:
-                        time.sleep(1)
-                        continue
-                    current_stats = current_stats[-1]
-                    
-                    if current_stats:
-                        logging.info(
-                            f"\nCurrent stats: Accuracy={current_stats['accuracy']:.1f} mAP, "
-                            f"Latency={current_stats['latency']:.3f}s, "
-                            f"Queue={current_stats['queue_length']}"
-                        )
-                        
-                        if prev_stats is not None:
-                            reward = self.get_reward(current_stats, prev_stats)
-                            self.avg_reward.update(reward.item())
-                            
-                            # 存储经验
-                            if prev_state is not None:
-                                self.memory.append(Transition(prev_state, prev_action, reward, current_state))
-                            
-                            # 训练模型
-                            if len(self.memory) >= self.min_memory_size:
-                                self.optimize_model()
-                                
-                                if self.steps_done % self.target_update == 0:
-                                    self.target_net.load_state_dict(self.policy_net.state_dict())
-                            
-                            logging.info(
-                                f"Reward: {reward.item():.3f}, "
-                                f"Epsilon: {self.epsilon:.3f}, "
-                                f"Avg Reward: {self.avg_reward.get():.3f}, "
-                                f"Avg Loss: {self.avg_loss.get():.3f}"
-                            )
-                        
-                        # 选择动作
-                        if self.can_switch_model():
-                            action = self.choose_action(current_state)
-                            next_model = self.models_by_performance[action]
-                            
-                            if next_model != current_stats.get('model_name'):
-                                logging.info(f"Switching to yolov5{next_model}")
-                                self.switch_model(next_model)
-                            else:
-                                logging.info("Keeping current model")
-                            
-                            prev_action = action
-                        
-                        prev_stats = current_stats.copy()
-                        prev_state = current_state
-                        
-                        self.steps_done += 1
-                        if self.epsilon > self.epsilon_min:
-                            self.epsilon *= self.epsilon_decay
-                    
-                    time.sleep(self.decision_interval)
-                    
-                except Exception as e:
-                    logging.error(f"Error in main loop iteration: {e}\n{traceback.format_exc()}")
-                    time.sleep(self.decision_interval)
+        while True:
+            try:
+                # 获取当前状态
+                current_time = time.time()
+                stats = self.get_current_stats()
                 
-        except KeyboardInterrupt:
-            logging.info("\nStopping RL model switcher...")
-            self.save_model()
-            self.stats_collector.stop()
-            self.sio.disconnect()
-        except Exception as e:
-            logging.error(f"Fatal error in switching loop: {e}\n{traceback.format_exc()}")
-            self.stats_collector.stop()
-            self.sio.disconnect()
+                if stats:
+                    # 添加到状态缓存
+                    self.state_buffer.add_state(stats)
+                    
+                    # 检查是否需要做出新的决策
+                    if current_time - self.last_decision_time >= self.decision_interval:
+                        logger.info(f"\nCurrent stats: Accuracy={stats['accuracy']:.1f} mAP, "
+                                  f"Latency={stats['latency']:.3f}s, "
+                                  f"Queue={stats['queue_length']}, "
+                                  f"Model=yolov5{stats['model_name']}")
+                        
+                        # 选择新的模型
+                        next_model = self.agent.select_action()
+                        if next_model != stats['model_name']:
+                            logger.info(f"Switching to yolov5{next_model}")
+                            self.switch_model(next_model)
+                        else:
+                            logger.info("Keeping current model")
+                            
+                        self.last_decision_time = current_time
+                
+                # 短暂休眠避免过于频繁的查询
+                time.sleep(0.5)
+                
+            except KeyboardInterrupt:
+                logger.info("\nStopping model switcher...")
+                self.sio.disconnect()
+                break
+            except Exception as e:
+                logger.error(f"Error in switching loop: {e}")
+                time.sleep(1)
 
 if __name__ == '__main__':
     try:
-        switcher = RLModelSwitcher()
+        # 设置随机种子以确保可复现性
+        random.seed(42)
+        np.random.seed(42)
+        torch.manual_seed(42)
+        
+        switcher = ModelSwitcher()
         switcher.adaptive_switch_loop()
+    except KeyboardInterrupt:
+        logger.info("Shutting down...")
     except Exception as e:
-        logging.error(f"Fatal error: {e}\n{traceback.format_exc()}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
