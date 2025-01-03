@@ -52,7 +52,7 @@ class LSTMDQN(nn.Module):
         self.hidden_size = hidden_size
         self.lstm_layers = lstm_layers
 
-        self.input_bn = nn.BatchNorm1d(input_size)
+        self.input_ln = nn.LayerNorm(input_size)
         
         # LSTM层处理时间序列
         self.lstm = nn.LSTM(
@@ -65,34 +65,26 @@ class LSTMDQN(nn.Module):
         
         # 全连接层处理LSTM的输出
         self.fc1 = nn.Linear(hidden_size, hidden_size)
-        self.fc1 = nn.Linear(hidden_size, hidden_size)
-        self.bn1 = nn.BatchNorm1d(hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
-        self.bn2 = nn.BatchNorm1d(hidden_size // 2)
         self.fc3 = nn.Linear(hidden_size // 2, output_size)
         
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.2)
     
     def forward(self, x):
-        batch_size, seq_len, _ = x.size()
-        x = x.view(-1, self.input_size)
-        x = self.input_bn(x)
-        x = x.view(batch_size, seq_len, -1)
+        x = self.input_ln(x)
         
         lstm_out, _ = self.lstm(x)
         last_output = lstm_out[:, -1, :]
         
         x = self.fc1(last_output)
-        x = self.bn1(x)
         x = self.relu(x)
         x = self.dropout(x)
         
         x = self.fc2(x)
-        x = self.bn2(x)
         x = self.relu(x)
         x = self.dropout(x)
-
+        
         x = self.fc3(x)
         return x
 
@@ -125,7 +117,7 @@ class DQNAgent:
         
         # Training parameters
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.batch_size = 32
+        self.batch_size = 16
         self.gamma = 0.95
         self.epsilon = 1.0
         self.epsilon_decay = 0.999
