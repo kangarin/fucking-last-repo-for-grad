@@ -31,4 +31,4 @@ dynamic_stream:
     min_fps: 1
     max_fps: 10
     min_duration: 60
-    max_duration: 120
+    max_duration: 300

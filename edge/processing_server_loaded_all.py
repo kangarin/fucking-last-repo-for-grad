@@ -52,7 +52,9 @@ class ModelManager:
             'queue_length': 0,
             'model_name': 's',
             'avg_confidence': 0,
-            'avg_size': 0
+            'avg_size': 0,
+            'brightness': 0,
+            'contrast': 0
         }
         self.stats_lock = threading.Lock()
         
@@ -167,6 +169,13 @@ class DetectionProcessor:
             # Get current model and run inference
             model = self.model_manager.get_active_model()
             if model is not None:
+
+                # 计算亮度和对比度
+                # 转换为灰度图像
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                brightness = gray.mean()  # 平均亮度
+                contrast = gray.std()     # 对比度(使用标准差)
+
                 # Perform detection
                 results = model(frame)
                 # 计算平均置信度
@@ -191,7 +200,7 @@ class DetectionProcessor:
 
                 # 更新统计信息
                 with self.model_manager.stats_lock:
-                    self.update_statistics(timestamps, avg_conf, avg_size)
+                    self.update_statistics(timestamps, avg_conf, avg_size, brightness, contrast)
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -212,20 +221,24 @@ class DetectionProcessor:
         except Exception as e:
             print(f"Error processing frame: {e}")
 
-    def update_statistics(self, timestamps, avg_conf, avg_size):
+    def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast):
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
         self.model_manager.stats['model_name'] = self.model_manager.current_model_name
         self.model_manager.stats['avg_confidence'] = float(avg_conf)
         self.model_manager.stats['avg_size'] = float(avg_size)
+        self.model_manager.stats['brightness'] = float(brightness)
+        self.model_manager.stats['contrast'] = float(contrast)
 
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
         f"Queue Length: {self.model_manager.stats['queue_length']}, "
         f"Model: yolov5{self.model_manager.stats['model_name']}, "
         f"Avg Confidence: {self.model_manager.stats['avg_confidence']:.2f}, "
-        f"Avg Size: {self.model_manager.stats['avg_size']:.2f}"
+        f"Avg Size: {self.model_manager.stats['avg_size']:.2f}, "
+        f"Brightness: {self.model_manager.stats['brightness']:.2f}, "
+        f"Contrast: {self.model_manager.stats['contrast']:.2f}"
         )
     
     def stop(self):
@@ -326,7 +339,9 @@ def get_stats():
                 'queue_length': processor.model_manager.stats['queue_length'],
                 'model_name': processor.model_manager.stats['model_name'],
                 'avg_confidence': processor.model_manager.stats['avg_confidence'],
-                'avg_size': processor.model_manager.stats['avg_size']
+                'avg_size': processor.model_manager.stats['avg_size'],
+                'brightness': processor.model_manager.stats['brightness'],
+                'contrast': processor.model_manager.stats['contrast']
             },
             'timestamp': time.time()
         }

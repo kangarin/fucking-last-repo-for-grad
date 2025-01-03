@@ -101,7 +101,7 @@ class DQNAgent:
         self.model_to_idx = {model: idx for idx, model in enumerate(self.model_names)}
         
         # 网络参数
-        self.feature_size = 5  # 每个状态的特征数
+        self.feature_size = 7  # 每个状态的特征数
         self.hidden_size = 64
         self.output_size = len(self.model_names)
         
@@ -146,13 +146,19 @@ class DQNAgent:
             
             # 目标大小归一化 (假设最大值为200)
             norm_size = min(1.0, state['avg_size'] / 200.0)
+
+            # 亮度和对比度归一化
+            norm_brightness = state['brightness'] / 255.0  
+            norm_contrast = min(1.0, state['contrast'] / 100.0)
             
             return {
                 'accuracy': norm_accuracy,
                 'latency': norm_latency,
                 'queue_length': norm_queue,
                 'avg_confidence': norm_confidence,
-                'avg_size': norm_size
+                'avg_size': norm_size,
+                'brightness': norm_brightness,
+                'contrast': norm_contrast
             }
         except Exception as e:
             logger.error(f"Error normalizing state: {e}")
@@ -182,7 +188,9 @@ class DQNAgent:
                 norm_state['latency'],
                 norm_state['queue_length'],
                 norm_state['avg_confidence'],
-                norm_state['avg_size']
+                norm_state['avg_size'],
+                norm_state['brightness'],
+                norm_state['contrast']
             ]
             sequence.append(features)
             
