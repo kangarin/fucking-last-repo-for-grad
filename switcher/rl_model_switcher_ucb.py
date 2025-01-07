@@ -119,9 +119,6 @@ class DQNAgent:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.batch_size = 16
         self.gamma = 0.95
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.999
-        self.epsilon_min = 0.1
         self.learning_rate = 1e-4
         self.target_update = 10
         self.steps = 0
@@ -142,6 +139,11 @@ class DQNAgent:
 
         self.queue_max_length = config.get_queue_max_length()
         self.queue_threshold_length = config.get_queue_threshold_length()
+
+        self.ucb_constant = 0.5  # UCB探索参数
+        # 记录每个动作的访问次数
+        self.action_counts = torch.zeros(len(self.model_names), device=self.device)
+        self.total_steps = 0  # 总步数
         
     def normalize_state(self, state):
         """Normalize individual state metrics to [0,1] range"""
@@ -281,7 +283,7 @@ class DQNAgent:
                 return 0.0
     
     def select_action(self):
-        """Select next model using epsilon-greedy policy"""
+        """Select next model using UCB policy"""
         observation = self.state_buffer.get_observation(self.observation_window)
         if not observation:
             return random.choice(self.model_names)
@@ -290,19 +292,26 @@ class DQNAgent:
         if state_tensor is None:
             return random.choice(self.model_names)
         
-        # Epsilon-greedy action selection
-        if random.random() > self.epsilon:
-            with torch.no_grad():
-                q_values = self.policy_net(state_tensor)
-                action_idx = q_values.max(1)[1].item()
-                selected_model = self.model_names[action_idx]
-        else:
-            selected_model = random.choice(self.model_names)
+        # UCB-based action selection
+        with torch.no_grad():
+            q_values = self.policy_net(state_tensor).squeeze(0)  # 获取Q值
+            
+            # 计算UCB项
+            action_counts = self.action_counts + 1  # 加1避免除零
+            
+            # UCB公式：Q值 + c * sqrt(log(total_steps) / N(a))
+            total_steps = self.total_steps + len(self.model_names)
+            exploration_bonus = torch.sqrt(torch.log(torch.tensor(total_steps, device=self.device)) / action_counts)
+            ucb_values = q_values + self.ucb_constant * exploration_bonus
+            
+            action_idx = ucb_values.argmax().item()
+            selected_model = self.model_names[action_idx]
         
-        # Decay epsilon
-        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        # 更新访问次数统计
+        self.action_counts[action_idx] += 1
+        self.total_steps += 1
         
-        # Get reward for previous action if available
+        # 获取之前决策的奖励并存储经验
         reward_states = self.state_buffer.get_reward_window(self.decision_interval)
         if reward_states:
             reward = self.compute_reward(reward_states)
@@ -323,7 +332,7 @@ class DQNAgent:
         
         self.current_model = selected_model
         return selected_model
-    
+
     def optimize_model(self):
         """Train the DQN"""
         if len(self.memory) < self.batch_size:

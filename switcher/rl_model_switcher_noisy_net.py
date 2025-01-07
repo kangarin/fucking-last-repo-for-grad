@@ -10,6 +10,9 @@ from socketio import Client
 from pathlib import Path
 import sys
 import logging
+import math
+import random
+from torch.nn import functional as F
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -45,6 +48,35 @@ class GlobalStateBuffer:
             return None
         return list(self.buffer)[-decision_interval:]
 
+class NoisyLinear(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        
+        # 参数初始化
+        mu_range = 1 / math.sqrt(in_features)
+        self.mu_weight = nn.Parameter(torch.zeros(out_features, in_features))
+        self.sigma_weight = nn.Parameter(torch.zeros(out_features, in_features))
+        self.mu_bias = nn.Parameter(torch.zeros(out_features))
+        self.sigma_bias = nn.Parameter(torch.zeros(out_features))
+        
+        self.reset_parameters()
+    
+    def reset_parameters(self):
+        mu_range = 1 / math.sqrt(self.in_features)
+        self.mu_weight.data.uniform_(-mu_range, mu_range)
+        self.sigma_weight.data.fill_(0.1 / math.sqrt(self.in_features))
+        self.mu_bias.data.uniform_(-mu_range, mu_range)
+        self.sigma_bias.data.fill_(0.1 / math.sqrt(self.out_features))
+    
+    def forward(self, x):
+        epsilon_weight = torch.randn_like(self.sigma_weight)
+        epsilon_bias = torch.randn_like(self.sigma_bias)
+        weight = self.mu_weight + self.sigma_weight * epsilon_weight
+        bias = self.mu_bias + self.sigma_bias * epsilon_bias
+        return F.linear(x, weight, bias)
+    
 class LSTMDQN(nn.Module):
     def __init__(self, input_size, hidden_size, lstm_layers=1, output_size=5):
         super(LSTMDQN, self).__init__()
@@ -53,20 +85,13 @@ class LSTMDQN(nn.Module):
         self.lstm_layers = lstm_layers
 
         self.input_ln = nn.LayerNorm(input_size)
+        self.lstm = nn.LSTM(input_size, hidden_size, lstm_layers, 
+                           batch_first=True, dropout=0.1)
         
-        # LSTM层处理时间序列
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=lstm_layers,
-            batch_first=True,
-            dropout=0.1
-        )
-        
-        # 全连接层处理LSTM的输出
-        self.fc1 = nn.Linear(hidden_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
-        self.fc3 = nn.Linear(hidden_size // 2, output_size)
+        # 使用NoisyLinear替换普通Linear层
+        self.fc1 = NoisyLinear(hidden_size, hidden_size)
+        self.fc2 = NoisyLinear(hidden_size, hidden_size // 2)
+        self.fc3 = NoisyLinear(hidden_size // 2, output_size)
         
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.2)

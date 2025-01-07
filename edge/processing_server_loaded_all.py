@@ -54,7 +54,8 @@ class ModelManager:
             'avg_confidence': 0,
             'avg_size': 0,
             'brightness': 0,
-            'contrast': 0
+            'contrast': 0,
+            'entropy': 0
         }
         self.stats_lock = threading.Lock()
         
@@ -194,6 +195,12 @@ class DetectionProcessor:
                 else:
                     avg_size = 0.0 # 如果没有检测到物体，大小为0
 
+                # 计算图像熵
+                img_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                hist = cv2.calcHist([img_gray], [0], None, [256], [0,256])
+                hist = hist / (frame.shape[0] * frame.shape[1])
+                entropy = -np.sum(hist * np.log2(hist + 1e-7))
+
                 rendered_frame = results.render()[0]
                 
                 # Add processing completion timestamp
@@ -201,7 +208,7 @@ class DetectionProcessor:
 
                 # 更新统计信息
                 with self.model_manager.stats_lock:
-                    self.update_statistics(timestamps, avg_conf, avg_size, brightness, contrast)
+                    self.update_statistics(timestamps, avg_conf, avg_size, brightness, contrast, entropy)
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -222,7 +229,7 @@ class DetectionProcessor:
         except Exception as e:
             print(f"Error processing frame: {e}")
 
-    def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast):
+    def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast, entropy):
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
@@ -231,6 +238,7 @@ class DetectionProcessor:
         self.model_manager.stats['avg_size'] = float(avg_size)
         self.model_manager.stats['brightness'] = float(brightness)
         self.model_manager.stats['contrast'] = float(contrast)
+        self.model_manager.stats['entropy'] = float(entropy)
 
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
@@ -239,7 +247,8 @@ class DetectionProcessor:
         f"Avg Confidence: {self.model_manager.stats['avg_confidence']:.2f}, "
         f"Avg Size: {self.model_manager.stats['avg_size']:.2f}, "
         f"Brightness: {self.model_manager.stats['brightness']:.2f}, "
-        f"Contrast: {self.model_manager.stats['contrast']:.2f}"
+        f"Contrast: {self.model_manager.stats['contrast']:.2f}, "
+        f"Entropy: {self.model_manager.stats['entropy']:.2f}"
         )
     
     def stop(self):
@@ -342,7 +351,8 @@ def get_stats():
                 'avg_confidence': processor.model_manager.stats['avg_confidence'],
                 'avg_size': processor.model_manager.stats['avg_size'],
                 'brightness': processor.model_manager.stats['brightness'],
-                'contrast': processor.model_manager.stats['contrast']
+                'contrast': processor.model_manager.stats['contrast'],
+                'entropy': processor.model_manager.stats['entropy']
             },
             'timestamp': time.time()
         }
