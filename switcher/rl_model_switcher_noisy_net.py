@@ -13,6 +13,9 @@ import logging
 import math
 import random
 from torch.nn import functional as F
+# 在现有的 import 部分添加：
+import csv
+from datetime import datetime
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -25,6 +28,55 @@ logger = logging.getLogger(__name__)
 
 # Define experience tuple structure
 Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state'])
+
+class StatsTracker:
+    def __init__(self, log_dir='logs'):
+        self.log_dir = Path(log_dir)
+        self.log_dir.mkdir(exist_ok=True)
+        
+        # 创建CSV文件用于记录详细统计信息
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.csv_path = self.log_dir / f'training_stats_{timestamp}.csv'
+        
+        # 初始化统计数据
+        self.loss_history = []
+        self.reward_history = []
+        self.episode_rewards = []
+        self.print_interval = 100
+        
+        # 创建CSV文件并写入表头
+        with open(self.csv_path, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Step', 'Loss', 'Reward', 'Avg_Loss_100', 'Avg_Reward_100'])
+            
+    def add_stats(self, step, loss, reward):
+        """记录每一步的统计信息"""
+        self.loss_history.append(loss)
+        self.reward_history.append(reward)
+        
+        # 只在每100步时进行统计和写入
+        if step % self.print_interval == 0:
+            # 计算最近100步的平均值
+            avg_loss = np.mean(self.loss_history[-100:]) if self.loss_history else 0
+            avg_reward = np.mean(self.reward_history[-100:]) if self.reward_history else 0
+            
+            # 只在整百步时写入CSV
+            with open(self.csv_path, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([step, loss, reward, avg_loss, avg_reward])
+            
+            # 打印统计信息
+            stats_message = (
+                f"\nTraining Statistics at step {step}:\n"
+                f"Average Loss (last 100): {avg_loss:.4f}\n"
+                f"Average Reward (last 100): {avg_reward:.4f}\n"
+            )
+            logger.info(stats_message)
+            
+            # 限制历史数据长度，防止内存无限增长
+            if len(self.loss_history) > 100: 
+                self.loss_history = self.loss_history[-100:]
+                self.reward_history = self.reward_history[-100:]
 
 class GlobalStateBuffer:
     def __init__(self, max_window_size=60):
@@ -136,18 +188,18 @@ class DQNAgent:
         self.model_to_idx = {model: idx for idx, model in enumerate(self.model_names)}
         
         # 网络参数
-        self.feature_size = 8  # 每个状态的特征数
+        self.feature_size = 9  # 每个状态的特征数
         self.hidden_size = 64
         self.output_size = len(self.model_names)
         
         # Training parameters
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.batch_size = 16
+        self.batch_size = 32
         self.gamma = 0.95
         self.epsilon = 1.0
         self.epsilon_decay = 0.999
         self.epsilon_min = 0.1
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-5
         self.target_update = 10
         self.steps = 0
         
@@ -167,6 +219,13 @@ class DQNAgent:
 
         self.queue_max_length = config.get_queue_max_length()
         self.queue_threshold_length = config.get_queue_threshold_length()
+
+        self.stats_tracker = StatsTracker()
+
+        # 添加模型保存相关的属性
+        self.save_interval = 100  # 每100步保存一次
+        self.model_save_dir = Path('saved_models')
+        self.model_save_dir.mkdir(exist_ok=True)
         
     def normalize_state(self, state):
         """Normalize individual state metrics to [0,1] range"""
@@ -178,7 +237,7 @@ class DQNAgent:
             norm_latency = state['latency']
             
             # 队列长度
-            norm_queue = state['queue_length'] / 20.0  # 假设最大值为20
+            norm_queue = state['queue_length'] / self.queue_max_length
             
             # 置信度已经在0-1范围
             norm_confidence = state['avg_confidence']
@@ -191,6 +250,8 @@ class DQNAgent:
             norm_contrast = min(1.0, state['contrast'] / 100.0)
 
             entropy = state['entropy'] / 10.0
+
+            total_targets = state['total_targets'] / 10.0
             
             return {
                 'accuracy': norm_accuracy,
@@ -200,7 +261,8 @@ class DQNAgent:
                 'avg_size': norm_size,
                 'brightness': norm_brightness,
                 'contrast': norm_contrast,
-                'entropy': entropy
+                'entropy': entropy,
+                'total_targets': total_targets
             }
         except Exception as e:
             logger.error(f"Error normalizing state: {e}")
@@ -233,7 +295,8 @@ class DQNAgent:
                 norm_state['avg_size'],
                 norm_state['brightness'],
                 norm_state['contrast'],
-                norm_state['entropy']
+                norm_state['entropy'],
+                norm_state['total_targets']
             ]
             sequence.append(features)
             
@@ -269,7 +332,7 @@ class DQNAgent:
                 # 准确率和置信度得分
                 accuracy_score = avg_accuracy * 0.5 + avg_confidence * 0.5
                 # 延迟得分
-                latency_score = np.exp(-avg_latency)
+                latency_score = 1 / (1 + avg_latency)
                 
                 # 2. 根据队列压力计算加权得分
                 total_reward = (accuracy_weight * accuracy_score + 
@@ -278,13 +341,13 @@ class DQNAgent:
                 # 3. 额外的队列积压惩罚（当队列超过阈值时）
                 queue_penalty = 0.0
                 if avg_queue > self.queue_threshold_length:
-                    queue_penalty = -0.2 * (avg_queue - self.queue_threshold_length)
+                    queue_penalty = -2.0 * (avg_queue - self.queue_threshold_length) / self.queue_max_length
                     total_reward += queue_penalty
                 
                 # 4. 额外的精度奖励（当队列很短时）
                 accuracy_bonus = 0.0
                 if avg_queue < self.queue_threshold_length and accuracy_score > 0.5:
-                    accuracy_bonus_scale = self.queue_threshold_length - avg_queue
+                    accuracy_bonus_scale = 4.0 * (self.queue_threshold_length - avg_queue) / self.queue_threshold_length
                     accuracy_bonus = (accuracy_score - 0.5) * accuracy_bonus_scale
                     total_reward += accuracy_bonus
 
@@ -344,12 +407,28 @@ class DQNAgent:
                         state_tensor
                     )
                     # Train the network
-                    self.optimize_model()
+                    self.optimize_model(reward)
         
         self.current_model = selected_model
         return selected_model
-    
-    def optimize_model(self):
+
+    def save_model(self, step):
+        """保存模型权重"""
+        try:
+            # 创建保存文件名，包含步数信息
+            save_path = self.model_save_dir / f'policy_net_step_{step}.pth'
+            # 保存策略网络的状态字典
+            torch.save({
+                'step': step,
+                'model_state_dict': self.policy_net.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict()
+            }, save_path)
+            
+            logger.info(f"Model saved successfully at step {step}: {save_path}")
+        except Exception as e:
+            logger.error(f"Error saving model at step {step}: {e}")
+
+    def optimize_model(self, current_reward):
         """Train the DQN"""
         if len(self.memory) < self.batch_size:
             return
@@ -384,6 +463,16 @@ class DQNAgent:
         
         # Update target network
         self.steps += 1
+        self.stats_tracker.add_stats(
+        step=self.steps,
+        loss=loss.item(),
+        reward=current_reward,
+        )
+
+        # 每隔save_interval步保存一次模型
+        if self.steps % self.save_interval == 0:
+            self.save_model(self.steps)
+
         logger.info(f"Step: {self.steps}, Loss: {loss.item()}")
         if self.steps % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())

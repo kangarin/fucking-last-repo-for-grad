@@ -1,0 +1,53 @@
+<svg viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+    <!-- 标题 -->
+    <text x="500" y="40" text-anchor="middle" font-size="20" font-weight="bold">自适应神经网络配置决策架构</text>
+    
+    <!-- 左侧：视频流处理系统 -->
+    <rect x="100" y="100" width="300" height="200" fill="none" stroke="black" stroke-width="2" rx="10"/>
+    <text x="250" y="130" text-anchor="middle" font-size="16" font-weight="bold">视频流检测</text>
+    
+    <!-- 视频流处理系统内部组件 -->
+    <rect x="120" y="160" width="260" height="120" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="250" y="190" text-anchor="middle" font-size="14">目标检测</text>
+    <text x="250" y="220" text-anchor="middle" font-size="14">性能统计</text>
+    <text x="250" y="250" text-anchor="middle" font-size="14">配置切换</text>
+    
+    <!-- 右侧：决策系统 -->
+    <rect x="600" y="100" width="300" height="300" fill="none" stroke="black" stroke-width="2" rx="10"/>
+    <text x="750" y="130" text-anchor="middle" font-size="16" font-weight="bold">自适应神经网络配置决策</text>
+    
+    <!-- 决策系统内部组件 -->
+    <rect x="620" y="160" width="260" height="120" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="750" y="190" text-anchor="middle" font-size="14">LSTM特征提取</text>
+    <text x="750" y="220" text-anchor="middle" font-size="14">动作价值评估</text>
+    <text x="750" y="250" text-anchor="middle" font-size="14">配置动作选择</text>
+    
+    <!-- 经验回放池 -->
+    <rect x="650" y="330" width="200" height="40" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="750" y="355" text-anchor="middle" font-size="14">经验回放池</text>
+    
+    <!-- 动作箭头：决策系统到视频流处理 -->
+    <path d="M 600 180 L 400 180" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="500" y="165" text-anchor="middle" font-size="12">动作（网络配置）</text>
+    
+    <!-- 状态箭头：视频流处理到决策系统 -->
+    <path d="M 400 220 L 600 220" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="500" y="205" text-anchor="middle" font-size="12">状态（性能统计）</text>
+    
+    <!-- 奖励箭头：视频流处理到决策系统 -->
+    <path d="M 400 260 L 600 260" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="500" y="245" text-anchor="middle" font-size="12">奖励（性能得分）</text>
+    
+    <!-- 内部箭头：训练更新和存储经验 -->
+    <path d="M 800 330 L 800 280" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 700 280 L 700 330" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <text x="810" y="305" text-anchor="start" font-size="12">训练更新</text>
+    <text x="690" y="305" text-anchor="end" font-size="12">存储经验</text>
+    
+    <!-- 箭头标记定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+        </marker>
+    </defs>
+</svg>

@@ -1,0 +1,75 @@
+<svg viewBox="0 0 1000 800" xmlns="http://www.w3.org/2000/svg">
+    <!-- 标题 -->
+    <text x="500" y="40" text-anchor="middle" font-size="20" font-weight="bold">目标检测神经网络集合构建与筛选流程</text>
+    
+    <!-- 起始节点 -->
+    <circle cx="500" cy="80" r="20" fill="none" stroke="black" stroke-width="2"/>
+    <text x="500" y="85" text-anchor="middle" font-size="14">开始</text>
+    
+    <!-- 分支判断菱形 -->
+    <path d="M 500 120 L 450 160 L 500 200 L 550 160 Z" fill="none" stroke="black" stroke-width="2"/>
+    <text x="500" y="165" text-anchor="middle" font-size="14">选择构建方式</text>
+    
+    <!-- 左分支：超网络 -->
+    <rect x="150" y="200" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="250" y="230" text-anchor="middle" font-size="14">构建检测主干网络</text>
+    
+    <rect x="150" y="300" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="250" y="330" text-anchor="middle" font-size="14">构建特征金字塔网络</text>
+    
+    <rect x="150" y="400" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="250" y="430" text-anchor="middle" font-size="14">构建检测头网络</text>
+    
+    <rect x="150" y="500" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="250" y="530" text-anchor="middle" font-size="14">共享权重训练</text>
+    
+    <!-- 右分支：离散网络 -->
+    <rect x="650" y="300" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="750" y="330" text-anchor="middle" font-size="14">设计网络变体</text>
+    
+    <rect x="650" y="400" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="750" y="430" text-anchor="middle" font-size="14">独立权重训练</text>
+    
+    <!-- 合并节点 -->
+    <rect x="400" y="600" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="630" text-anchor="middle" font-size="14">性能评估</text>
+    
+    <!-- 筛选步骤 -->
+    <rect x="400" y="700" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="730" text-anchor="middle" font-size="14">网络配置筛选</text>
+    
+    <!-- 分支箭头文字说明 -->
+    <text x="320" y="130" text-anchor="middle" font-size="12">构建基于超网络的</text>
+    <text x="320" y="145" text-anchor="middle" font-size="12">权重共享神经网络集合</text>
+    
+    <text x="680" y="130" text-anchor="middle" font-size="12">构建离散的</text>
+    <text x="680" y="145" text-anchor="middle" font-size="12">权重独立神经网络集合</text>
+    
+    <!-- 连接箭头 -->
+    <!-- 起始到分支 -->
+    <path d="M 500 100 L 500 120" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 分支到两边起始节点 -->
+    <path d="M 450 160 L 250 160 L 250 200" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 550 160 L 750 160 L 750 300" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 左边连接线 -->
+    <path d="M 250 250 L 250 300" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 250 350 L 250 400" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 250 450 L 250 500" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 250 550 L 250 625 L 400 625" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 右边连接线 -->
+    <path d="M 750 350 L 750 400" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 750 450 L 750 625 L 600 625" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 最后的连接线 -->
+    <path d="M 500 650 L 500 700" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 箭头标记定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+        </marker>
+    </defs>
+</svg>

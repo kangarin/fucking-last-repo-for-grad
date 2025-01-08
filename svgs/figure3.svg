@@ -1,0 +1,75 @@
+<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+    <!-- 标题 -->
+    <text x="500" y="40" text-anchor="middle" font-size="20" font-weight="bold">视频流处理与配置切换流程</text>
+    
+    <!-- 起始节点 -->
+    <circle cx="500" cy="80" r="20" fill="none" stroke="black" stroke-width="2"/>
+    <text x="500" y="85" text-anchor="middle" font-size="14">开始</text>
+    
+    <!-- 主流程左侧节点 -->
+    <!-- 初始神经网络配置 -->
+    <rect x="400" y="120" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="150" text-anchor="middle" font-size="14">初始神经网络配置</text>
+    
+    <!-- 接收视频流 -->
+    <rect x="400" y="200" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="230" text-anchor="middle" font-size="14">接收视频流</text>
+    
+    <!-- 创建处理队列 -->
+    <rect x="400" y="280" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="310" text-anchor="middle" font-size="14">创建帧处理队列</text>
+    
+    <!-- 目标检测处理 -->
+    <rect x="400" y="360" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="390" text-anchor="middle" font-size="14">目标检测处理</text>
+    
+    <!-- 更新性能统计 -->
+    <rect x="400" y="440" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="500" y="470" text-anchor="middle" font-size="14">更新性能统计</text>
+    
+    <!-- 判断是否需要更新配置 -->
+    <path d="M 500 520 L 400 570 L 500 620 L 600 570 Z" fill="none" stroke="black" stroke-width="2"/>
+    <text x="500" y="575" text-anchor="middle" font-size="14">是否需要</text>
+    <text x="500" y="595" text-anchor="middle" font-size="14">更新配置</text>
+    
+    <!-- 右侧分支节点 -->
+    <!-- 配置更新状态监测 -->
+    <rect x="700" y="545" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="800" y="575" text-anchor="middle" font-size="14">配置更新状态监测</text>
+    
+    <!-- 神经网络配置切换 -->
+    <rect x="700" y="360" width="200" height="50" fill="none" stroke="black" stroke-width="2" rx="5"/>
+    <text x="800" y="390" text-anchor="middle" font-size="14">神经网络配置切换</text>
+    
+    <!-- 连接箭头 -->
+    <!-- 起始向下 -->
+    <path d="M 500 100 L 500 120" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 主干线向下 -->
+    <path d="M 500 170 L 500 200" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 500 250 L 500 280" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 500 330 L 500 360" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 500 410 L 500 440" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 500 490 L 500 520" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 判断节点连接 -->
+    <path d="M 600 570 L 700 570" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    <path d="M 800 545 L 800 410" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 配置切换到目标检测的水平连接 -->
+    <path d="M 700 385 L 600 385" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 不更新配置的循环 -->
+    <path d="M 400 570 L 300 570 L 300 385 L 400 385" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 是否判断的文字标注 -->
+    <text x="650" y="550" text-anchor="start" font-size="12">是</text>
+    <text x="370" y="550" text-anchor="end" font-size="12">否</text>
+    
+    <!-- 箭头标记定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+        </marker>
+    </defs>
+</svg>

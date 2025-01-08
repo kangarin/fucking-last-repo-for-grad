@@ -53,9 +53,10 @@ class ModelManager:
             'model_name': 's',
             'avg_confidence': 0,
             'avg_size': 0,
+            'total_targets': 0,
             'brightness': 0,
             'contrast': 0,
-            'entropy': 0
+            'entropy': 0,
         }
         self.stats_lock = threading.Lock()
         
@@ -180,6 +181,9 @@ class DetectionProcessor:
 
                 # Perform detection
                 results = model(frame)
+
+                total_targets = len(results.pred[0])  # 检测到的目标数量
+
                 # 计算平均置信度
                 if len(results.pred[0]) > 0:  # 如果有检测到的物体
                     confidences = results.pred[0][:, 4].cpu().numpy()  # 提取置信度值
@@ -208,7 +212,7 @@ class DetectionProcessor:
 
                 # 更新统计信息
                 with self.model_manager.stats_lock:
-                    self.update_statistics(timestamps, avg_conf, avg_size, brightness, contrast, entropy)
+                    self.update_statistics(timestamps, avg_conf, avg_size, brightness, contrast, entropy, total_targets)
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -229,7 +233,7 @@ class DetectionProcessor:
         except Exception as e:
             print(f"Error processing frame: {e}")
 
-    def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast, entropy):
+    def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast, entropy, total_targets):
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
@@ -239,6 +243,7 @@ class DetectionProcessor:
         self.model_manager.stats['brightness'] = float(brightness)
         self.model_manager.stats['contrast'] = float(contrast)
         self.model_manager.stats['entropy'] = float(entropy)
+        self.model_manager.stats['total_targets'] = float(total_targets)
 
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
@@ -248,7 +253,8 @@ class DetectionProcessor:
         f"Avg Size: {self.model_manager.stats['avg_size']:.2f}, "
         f"Brightness: {self.model_manager.stats['brightness']:.2f}, "
         f"Contrast: {self.model_manager.stats['contrast']:.2f}, "
-        f"Entropy: {self.model_manager.stats['entropy']:.2f}"
+        f"Entropy: {self.model_manager.stats['entropy']:.2f}, "
+        f"Total Targets: {self.model_manager.stats['total_targets']:.2f}"
         )
     
     def stop(self):
@@ -352,7 +358,8 @@ def get_stats():
                 'avg_size': processor.model_manager.stats['avg_size'],
                 'brightness': processor.model_manager.stats['brightness'],
                 'contrast': processor.model_manager.stats['contrast'],
-                'entropy': processor.model_manager.stats['entropy']
+                'entropy': processor.model_manager.stats['entropy'],
+                'total_targets': processor.model_manager.stats['total_targets']
             },
             'timestamp': time.time()
         }

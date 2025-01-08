@@ -2,15 +2,15 @@
 cloud:
   display_server:
     host: '0.0.0.0'
-    port: 6011
-    url: 'http://0.0.0.0:6011'
+    port: 6021
+    url: 'http://0.0.0.0:6021'
 
 # Edge node configurations
 edge:
   processing_server:
     host: '0.0.0.0'
-    port: 6012
-    url: 'http://0.0.0.0:6012'
+    port: 6022
+    url: 'http://0.0.0.0:6022'
   
   models:
     default: 's'
@@ -35,5 +35,5 @@ dynamic_stream:
 
 # queue length
 queue:
-  max_length: 20
-  threshold_length: 10
+  max_length: 50
+  threshold_length: 25

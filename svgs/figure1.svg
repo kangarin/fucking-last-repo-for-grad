@@ -1,0 +1,53 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+    <!-- 标题 -->
+    <text x="400" y="40" text-anchor="middle" font-size="20" font-weight="bold">面向视频流目标检测的自适应神经网络配置方法</text>
+    
+    <!-- 离线部分框架 -->
+    <rect x="100" y="100" width="600" height="160" fill="none" stroke="black" stroke-width="1" rx="10"/>
+    
+    <!-- 第一部分主框架 -->
+    <rect x="120" y="120" width="560" height="120" fill="none" stroke="black" stroke-width="2" rx="10"/>
+    <text x="400" y="150" text-anchor="middle" font-size="16" font-weight="bold">构建并筛选目标检测神经网络集合</text>
+    
+    <!-- 第一部分子步骤 -->
+    <rect x="140" y="170" width="250" height="60" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="265" y="190" text-anchor="middle" font-size="12">构建目标检测神经网络集合</text>
+    <text x="265" y="205" text-anchor="middle" font-size="10">基于超网络的权重共享神经网络集合/</text>
+    <text x="265" y="220" text-anchor="middle" font-size="10">离散的权重独立神经网络集合</text>
+    
+    <rect x="410" y="170" width="250" height="60" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="535" y="195" text-anchor="middle" font-size="12">筛选目标检测神经网络集合</text>
+    <text x="535" y="210" text-anchor="middle" font-size="10">性能评估与场景需求筛选</text>
+
+    <!-- 在线部分框架 -->
+    <rect x="100" y="320" width="600" height="260" fill="none" stroke="black" stroke-width="1" rx="10"/>
+    
+    <!-- 第二部分主框架 -->
+    <rect x="120" y="340" width="560" height="100" fill="none" stroke="black" stroke-width="2" rx="10"/>
+    <text x="400" y="370" text-anchor="middle" font-size="16" font-weight="bold">视频流目标检测</text>
+    <rect x="140" y="390" width="520" height="30" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="400" y="410" text-anchor="middle" font-size="12">初始配置 → 接收视频流 → 目标检测 → 判断是否需要更新配置</text>
+    
+    <!-- 第三部分主框架 -->
+    <rect x="120" y="460" width="560" height="100" fill="none" stroke="black" stroke-width="2" rx="10"/>
+    <text x="400" y="490" text-anchor="middle" font-size="16" font-weight="bold">自适应配置决策</text>
+    <rect x="140" y="510" width="520" height="30" fill="none" stroke="black" stroke-width="1" rx="5"/>
+    <text x="400" y="530" text-anchor="middle" font-size="12">时序状态特征更新 → 神经网络配置决策 → 配置切换执行 → 决策优化</text>
+    
+    <!-- 连接箭头 -->
+    <!-- 离线到在线的箭头 -->
+    <path d="M 400 240 L 400 320" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 步骤2到步骤3的箭头 -->
+    <path d="M 680 440 L 720 440 L 720 510 L 680 510" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 步骤3到步骤2的箭头 -->
+    <path d="M 120 510 L 80 510 L 80 440 L 120 440" fill="none" stroke="black" stroke-width="2" marker-end="url(#arrowhead)"/>
+    
+    <!-- 箭头标记定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+        </marker>
+    </defs>
+</svg>
