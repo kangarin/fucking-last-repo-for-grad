@@ -188,7 +188,7 @@ class DQNAgent:
         self.model_to_idx = {model: idx for idx, model in enumerate(self.model_names)}
         
         # 网络参数
-        self.feature_size = 9  # 每个状态的特征数
+        self.feature_size = 11  # 每个状态的特征数
         self.hidden_size = 64
         self.output_size = len(self.model_names)
         
@@ -235,6 +235,8 @@ class DQNAgent:
             
             # 延迟
             norm_latency = state['latency']
+
+            norm_processing_latency = state['processing_latency']
             
             # 队列长度
             norm_queue = state['queue_length'] / self.queue_max_length
@@ -252,17 +254,21 @@ class DQNAgent:
             entropy = state['entropy'] / 10.0
 
             total_targets = state['total_targets'] / 10.0
+
+            target_fps = state['target_fps']
             
             return {
                 'accuracy': norm_accuracy,
                 'latency': norm_latency,
+                'processing_latency': norm_processing_latency,
                 'queue_length': norm_queue,
                 'avg_confidence': norm_confidence,
                 'avg_size': norm_size,
                 'brightness': norm_brightness,
                 'contrast': norm_contrast,
                 'entropy': entropy,
-                'total_targets': total_targets
+                'total_targets': total_targets,
+                'target_fps': target_fps
             }
         except Exception as e:
             logger.error(f"Error normalizing state: {e}")
@@ -290,13 +296,15 @@ class DQNAgent:
             features = [
                 norm_state['accuracy'],
                 norm_state['latency'],
+                norm_state['processing_latency'],
                 norm_state['queue_length'],
                 norm_state['avg_confidence'],
                 norm_state['avg_size'],
                 norm_state['brightness'],
                 norm_state['contrast'],
                 norm_state['entropy'],
-                norm_state['total_targets']
+                norm_state['total_targets'],
+                norm_state['target_fps']
             ]
             sequence.append(features)
             
@@ -341,7 +349,7 @@ class DQNAgent:
                 # 3. 额外的队列积压惩罚（当队列超过阈值时）
                 queue_penalty = 0.0
                 if avg_queue > self.queue_threshold_length:
-                    queue_penalty = -2.0 * (avg_queue - self.queue_threshold_length) / self.queue_max_length
+                    queue_penalty = -4.0 * (avg_queue - self.queue_threshold_length) / self.queue_max_length
                     total_reward += queue_penalty
                 
                 # 4. 额外的精度奖励（当队列很短时）
@@ -478,11 +486,12 @@ class DQNAgent:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
 class ModelSwitcher:
-    def __init__(self):
+    def __init__(self, stats_update_interval=1.0):
         self.sio = Client()
         processing_config = config.get_edge_processing_config()
         self.processing_server_url = processing_config['url']
         self.http_url = self.processing_server_url
+        self.stats_update_interval = stats_update_interval
         
         # 初始化状态管理和DQN代理
         self.state_buffer = GlobalStateBuffer()
@@ -589,8 +598,8 @@ class ModelSwitcher:
                             
                         self.last_decision_time = current_time
                 
-                # 短暂休眠避免过于频繁的查询
-                time.sleep(0.5)
+                # 查询间隔
+                time.sleep(self.stats_update_interval)
                 
             except KeyboardInterrupt:
                 logger.info("\nStopping model switcher...")

@@ -49,6 +49,7 @@ class ModelManager:
         self.stats = {
             'accuracy': 0,
             'latency': 0,
+            'processing_latency': 0,
             'queue_length': 0,
             'model_name': 's',
             'avg_confidence': 0,
@@ -57,6 +58,7 @@ class ModelManager:
             'brightness': 0,
             'contrast': 0,
             'entropy': 0,
+            'target_fps': 0
         }
         self.stats_lock = threading.Lock()
         
@@ -236,6 +238,7 @@ class DetectionProcessor:
     def update_statistics(self, timestamps, avg_conf, avg_size, brightness, contrast, entropy, total_targets):
         self.model_manager.stats['accuracy'] = self.model_manager.current_map
         self.model_manager.stats['latency'] = timestamps['processed'] - timestamps['received']
+        self.model_manager.stats['processing_latency'] = timestamps['processed'] - timestamps['start_processing']
         self.model_manager.stats['queue_length'] = len(self.frame_queue)
         self.model_manager.stats['model_name'] = self.model_manager.current_model_name
         self.model_manager.stats['avg_confidence'] = float(avg_conf)
@@ -247,6 +250,7 @@ class DetectionProcessor:
 
         print(f"Accuracy: {self.model_manager.stats['accuracy']:.1f} mAP, "
         f"Latency: {self.model_manager.stats['latency']:.3f}s, "
+        f"Processing Latency: {self.model_manager.stats['processing_latency']:.3f}s, "
         f"Queue Length: {self.model_manager.stats['queue_length']}, "
         f"Model: yolov5{self.model_manager.stats['model_name']}, "
         f"Avg Confidence: {self.model_manager.stats['avg_confidence']:.2f}, "
@@ -300,7 +304,12 @@ def handle_frame(data):
         # Add received timestamp
         timestamps = data.get('timestamps', {})
         timestamps['received'] = time.time()
-        
+
+        # Get target fps
+        target_fps = data.get('target_fps', 0)
+        with processor.model_manager.stats_lock:
+            processor.model_manager.stats['target_fps'] = target_fps
+
         # Decode image data
         img_data = base64.b64decode(data['image'])
         nparr = np.frombuffer(img_data, np.uint8)
@@ -352,6 +361,7 @@ def get_stats():
             'stats': {
                 'accuracy': processor.model_manager.stats['accuracy'],
                 'latency': processor.model_manager.stats['latency'],
+                'processing_latency': processor.model_manager.stats['processing_latency'],
                 'queue_length': processor.model_manager.stats['queue_length'],
                 'model_name': processor.model_manager.stats['model_name'],
                 'avg_confidence': processor.model_manager.stats['avg_confidence'],
@@ -359,7 +369,8 @@ def get_stats():
                 'brightness': processor.model_manager.stats['brightness'],
                 'contrast': processor.model_manager.stats['contrast'],
                 'entropy': processor.model_manager.stats['entropy'],
-                'total_targets': processor.model_manager.stats['total_targets']
+                'total_targets': processor.model_manager.stats['total_targets'],
+                'target_fps': processor.model_manager.stats['target_fps']
             },
             'timestamp': time.time()
         }
