@@ -311,71 +311,124 @@ class DQNAgent:
         # 转换为tensor，形状为(1, seq_len, feature_size)
         return torch.FloatTensor(sequence).unsqueeze(0).to(self.device)
     
-    def compute_reward(self, states):
-            """
-            动态权重的奖励函数：
-            - 队列短时重视准确率和置信度
-            - 队列长时重视延迟
-            """
-            if not states:
-                return 0.0
+    # def compute_reward(self, states):
+    #         """
+    #         动态权重的奖励函数：
+    #         - 队列短时重视准确率和置信度
+    #         - 队列长时重视延迟
+    #         """
+    #         if not states:
+    #             return 0.0
             
-            try:
-                # 获取原始指标的平均值
-                avg_queue = np.mean([s['queue_length'] for s in states])
-                avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
-                avg_confidence = np.mean([s['avg_confidence'] for s in states])
-                avg_latency = np.mean([s['latency'] for s in states])
+    #         try:
+    #             # 获取原始指标的平均值
+    #             avg_queue = np.mean([s['queue_length'] for s in states])
+    #             avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
+    #             avg_confidence = np.mean([s['avg_confidence'] for s in states])
+    #             avg_latency = np.mean([s['latency'] for s in states])
                 
-                # 计算队列压力系数 (0到1之间)
-                queue_pressure = min(1.0, avg_queue / self.queue_max_length)
+    #             # 计算队列压力系数 (0到1之间)
+    #             queue_pressure = min(1.0, avg_queue / self.queue_max_length)
                 
-                # 根据队列压力动态分配权重
-                # 队列压力低时: 准确率权重高，延迟权重低
-                # 队列压力高时: 准确率权重低，延迟权重高
-                accuracy_weight = 1.0 - queue_pressure
-                latency_weight = queue_pressure
+    #             # 根据队列压力动态分配权重
+    #             # 队列压力低时: 准确率权重高，延迟权重低
+    #             # 队列压力高时: 准确率权重低，延迟权重高
+    #             accuracy_weight = 1.0 - queue_pressure
+    #             latency_weight = queue_pressure
                 
-                # 1. 性能得分
-                # 准确率和置信度得分
-                accuracy_score = avg_accuracy * 0.5 + avg_confidence * 0.5
-                # 延迟得分
-                latency_score = 1 / (1 + avg_latency)
+    #             # 1. 性能得分
+    #             # 准确率和置信度得分
+    #             accuracy_score = avg_accuracy * 0.5 + avg_confidence * 0.5
+    #             # 延迟得分
+    #             latency_score = 1 / (1 + avg_latency)
                 
-                # 2. 根据队列压力计算加权得分
-                total_reward = (accuracy_weight * accuracy_score + 
-                            latency_weight * latency_score)
+    #             # 2. 根据队列压力计算加权得分
+    #             total_reward = (accuracy_weight * accuracy_score + 
+    #                         latency_weight * latency_score)
                 
-                # 3. 额外的队列积压惩罚（当队列超过阈值时）
-                queue_penalty = 0.0
-                if avg_queue > self.queue_threshold_length:
-                    queue_penalty = -4.0 * (avg_queue - self.queue_threshold_length) / self.queue_max_length
-                    total_reward += queue_penalty
+    #             # 3. 额外的队列积压惩罚（当队列超过阈值时）
+    #             queue_penalty = 0.0
+    #             if avg_queue > self.queue_threshold_length:
+    #                 queue_penalty = -4.0 * (avg_queue - self.queue_threshold_length) / self.queue_max_length
+    #                 total_reward += queue_penalty
                 
-                # 4. 额外的精度奖励（当队列很短时）
-                accuracy_bonus = 0.0
-                if avg_queue < self.queue_threshold_length and accuracy_score > 0.5:
-                    accuracy_bonus_scale = 4.0 * (self.queue_threshold_length - avg_queue) / self.queue_threshold_length
-                    accuracy_bonus = (accuracy_score - 0.5) * accuracy_bonus_scale
-                    total_reward += accuracy_bonus
+    #             # 4. 额外的精度奖励（当队列很短时）
+    #             accuracy_bonus = 0.0
+    #             if avg_queue < self.queue_threshold_length and accuracy_score > 0.5:
+    #                 accuracy_bonus_scale = 4.0 * (self.queue_threshold_length - avg_queue) / self.queue_threshold_length
+    #                 accuracy_bonus = (accuracy_score - 0.5) * accuracy_bonus_scale
+    #                 total_reward += accuracy_bonus
 
-                # 5. 裁剪最终奖励到合理范围
-                total_reward = np.clip(total_reward, -2.0, 2.0)
+    #             # 5. 裁剪最终奖励到合理范围
+    #             total_reward = np.clip(total_reward, -2.0, 2.0)
                 
-                logger.info(f"""Reward breakdown:
-                    Accuracy: {accuracy_score:.3f} (Weight: {accuracy_weight:.2f})
-                    Latency: {latency_score:.3f} (Weight: {latency_weight:.2f})
-                    Queue Penalty: {queue_penalty:.3f}
-                    Accuracy Bonus: {accuracy_bonus:.3f}
-                    Queue: {queue_pressure:.3f} (Avg Queue: {avg_queue:.1f})
-                    Total Reward: {total_reward:.3f}""")
+    #             logger.info(f"""Reward breakdown:
+    #                 Accuracy: {accuracy_score:.3f} (Weight: {accuracy_weight:.2f})
+    #                 Latency: {latency_score:.3f} (Weight: {latency_weight:.2f})
+    #                 Queue Penalty: {queue_penalty:.3f}
+    #                 Accuracy Bonus: {accuracy_bonus:.3f}
+    #                 Queue: {queue_pressure:.3f} (Avg Queue: {avg_queue:.1f})
+    #                 Total Reward: {total_reward:.3f}""")
                 
-                return float(total_reward)
+    #             return float(total_reward)
                     
-            except Exception as e:
-                logger.error(f"Error computing reward: {e}")
-                return 0.0
-    
+    #         except Exception as e:
+    #             logger.error(f"Error computing reward: {e}")
+    #             return 0.0
+
+    def compute_reward(self, states):
+        """
+        修改后的奖励函数：
+        1. 准确率结合置信度
+        2. 线性的时延奖励和惩罚
+        """
+        if not states:
+            return 0.0
+        
+        try:
+            # 获取当前状态的关键指标
+            avg_queue = np.mean([s['queue_length'] for s in states])
+            avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
+            avg_confidence = np.mean([s['avg_confidence'] for s in states])  # 已经是0-1范围
+            avg_latency = np.mean([s['latency'] for s in states])
+            avg_processing_latency = np.mean([s['processing_latency'] for s in states])
+            
+            # 定义队列压力
+            queue_pressure = avg_queue / self.queue_threshold_length
+            
+            # 结合准确率和置信度
+            performance_score = 2.0 * max(avg_accuracy + avg_confidence - 0.5, 0.0)
+
+            latency_score = 1.0 - avg_latency
+
+            processing_latency_score = - avg_processing_latency
+            
+            if queue_pressure < 1.0:  # 队列长度在阈值以下
+                # 重视准确率和置信度，同时给予少量延迟奖励
+                reward = performance_score * 0.9 + latency_score * 0.1
+            else:  # 队列长度超过阈值
+                # 重视处理速度
+                reward = latency_score + processing_latency_score
+                # 队列超过阈值时施加惩罚
+                reward -= (queue_pressure - 1.0)
+            
+            # 裁剪奖励到[-1, 1]范围
+            reward = max(min(reward, 2.0), -2.0)
+            
+            logger.info(f"""Reward breakdown:
+                Queue Length: {avg_queue:.1f} (Pressure: {queue_pressure:.2f})
+                Performance Score: {performance_score:.3f} (Accuracy: {avg_accuracy:.3f}, Confidence: {avg_confidence:.3f})
+                Latency Score: {latency_score:.3f} (Latency: {avg_latency:.3f}s)
+                Processing Latency Score: {processing_latency_score:.3f} (Processing Latency: {avg_processing_latency:.3f}s)
+                Final Reward: {reward:.3f}
+                """)
+            
+            return float(reward)
+                
+        except Exception as e:
+            logger.error(f"Error computing reward: {e}")
+            return 0.0
+        
     def select_action(self):
         """Select next model using epsilon-greedy policy"""
         observation = self.state_buffer.get_observation(self.observation_window)
