@@ -246,49 +246,43 @@ class A2CAgent:
         return torch.FloatTensor(sequence).unsqueeze(0).to(self.device)
 
     def compute_reward(self, states, action_idx):
-        """计算奖励，包括非法动作惩罚"""
+        """计算奖励，使用基于队列长度的平滑权重过渡"""
         if not states:
             return 0.0
         
         try:
-            # 基础奖励计算
+            # 提取基础指标
             avg_queue = np.mean([s['queue_length'] for s in states])
-            avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0
+            avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
             avg_confidence = np.mean([s['avg_confidence'] for s in states])
             avg_latency = np.mean([s['latency'] for s in states])
-            avg_processing_latency = np.mean([s['processing_latency'] for s in states])
             
-            queue_pressure = avg_queue / self.queue_threshold_length
-            performance_score = 2.0 * max(avg_accuracy + avg_confidence - 0.5, 0.0)
-            latency_score = 1.0 - avg_latency
-            processing_latency_score = - avg_processing_latency
+            # 使用队列长度比例作为平滑权重
+            queue_ratio = min(avg_queue / self.queue_max_length, 1.0)  # 确保不超过1
             
-            # 基础奖励
-            if queue_pressure < 1.0:
-                reward = performance_score * 0.9 + latency_score * 0.1
-            else:
-                reward = processing_latency_score * (avg_queue - self.queue_threshold_length) / self.queue_threshold_length
+            # queue_ratio越大，越偏向延迟优化
+            w1 = 1 - queue_ratio  # 精度权重，队列满时为0
+            w2 = queue_ratio      # 延迟权重，队列满时为1
             
-            # 检查是否是非法动作
+            # 计算基础奖励
+            reward = w1 * (avg_accuracy + avg_confidence) - w2 * avg_latency
+            
+            # 检查非法动作并施加惩罚
             current_model = states[-1]['model_name']
             current_idx = self.model_levels.index(current_model)
             action = self.actions[action_idx]
             
-            # 在最高档时还要升档，或在最低档时还要降档
             if (action == 1 and current_idx == len(self.model_levels)-1) or \
-               (action == -1 and current_idx == 0):
+            (action == -1 and current_idx == 0):
                 illegal_penalty = -1.0
                 logger.info(f"Applied illegal action penalty: {illegal_penalty}")
                 reward += illegal_penalty
             
-            # 裁剪最终奖励
-            reward = max(min(reward, 3.0), -3.0)
-            
             logger.info(f"""Reward breakdown:
-                Queue Length: {avg_queue:.1f} (Pressure: {queue_pressure:.2f})
-                Performance Score: {performance_score:.3f} (Accuracy: {avg_accuracy:.3f}, Confidence: {avg_confidence:.3f})
-                Latency Score: {latency_score:.3f} (Latency: {avg_latency:.3f}s)
-                Processing Latency Score: {processing_latency_score:.3f} (Processing Latency: {avg_processing_latency:.3f}s)
+                Queue Length: {avg_queue:.1f} (Ratio: {queue_ratio:.2f})
+                Weights: accuracy={w1:.2f}, latency={w2:.2f}
+                Accuracy: {avg_accuracy:.3f}
+                Latency: {avg_latency:.3f}s
                 Final Reward: {reward:.3f}
                 """)
             
@@ -297,7 +291,7 @@ class A2CAgent:
         except Exception as e:
             logger.error(f"Error computing reward: {e}")
             return 0.0
-
+        
     def select_action(self, current_stats):
         """选择动作并转换为实际模型"""
         # 获取当前状态
