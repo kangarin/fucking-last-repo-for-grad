@@ -180,6 +180,19 @@ class A2CAgent:
         self.queue_max_length = config.get_queue_max_length()
         self.queue_threshold_length = config.get_queue_threshold_length()
 
+    def save_model(self, step):
+        """保存模型到文件"""
+        try:
+            model_path = self.model_save_dir / f'model_step_{step}.pt'
+            torch.save({
+                'step': step,
+                'model_state_dict': self.network.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+            }, model_path)
+            logger.info(f"Model saved to {model_path}")
+        except Exception as e:
+            logger.error(f"Error saving model: {e}")
+
     def normalize_state(self, state):
         """归一化状态数据并添加模型one-hot编码"""
         try:
@@ -254,7 +267,7 @@ class A2CAgent:
             if queue_pressure < 1.0:
                 reward = performance_score * 0.9 + latency_score * 0.1
             else:
-                reward = processing_latency_score * 10 * (avg_queue - self.queue_threshold_length) / self.queue_threshold_length
+                reward = processing_latency_score * (avg_queue - self.queue_threshold_length) / self.queue_threshold_length
             
             # 检查是否是非法动作
             current_model = states[-1]['model_name']
@@ -347,17 +360,23 @@ class A2CAgent:
         reward = self.compute_reward(reward_states, self.last_action_info['action'].item())
         reward_tensor = torch.tensor([[reward]], device=self.device)
             
-        _, next_value = self.network(current_state)
+        # 计算新的状态值
+        with torch.set_grad_enabled(True):
+            _, next_value = self.network(current_state)
             
-        td_error = reward_tensor + self.gamma * next_value.detach() - self.last_action_info['value']
-        policy_loss = -self.last_action_info['log_prob'] * td_error.detach()
-        value_loss = 0.5 * td_error.pow(2)
-        loss = policy_loss + value_loss
+            # 计算TD误差
+            td_error = reward_tensor + self.gamma * next_value - self.last_action_info['value']
             
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
-        self.optimizer.step()
+            # 计算策略损失和价值损失
+            policy_loss = -self.last_action_info['log_prob'] * td_error.detach()
+            value_loss = 0.5 * td_error.pow(2)
+            loss = policy_loss + value_loss
+            
+            # 进行反向传播
+            self.optimizer.zero_grad()
+            loss.backward(retain_graph=True)  # 添加 retain_graph=True
+            torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+            self.optimizer.step()
             
         self.steps += 1
         self.stats_tracker.add_stats(
