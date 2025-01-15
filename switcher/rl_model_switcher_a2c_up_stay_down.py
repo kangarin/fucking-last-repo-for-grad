@@ -112,32 +112,54 @@ class ActorCritic(nn.Module):
         self.lstm = nn.LSTM(input_size, hidden_size, lstm_layers, 
                            batch_first=True, dropout=0.1)
         
-        # Actor网络 - 输出3个动作的概率：升档(1)、保持(0)、降档(-1)
-        self.actor = nn.Sequential(
+        # 共享特征层
+        self.shared = nn.Sequential(
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_size, 3)  # 3个动作
+            nn.LayerNorm(hidden_size),
+            nn.Dropout(0.1)
+        )
+        
+        # Actor网络
+        self.actor = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+            nn.LayerNorm(hidden_size // 2),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_size // 2, 3)
         )
         
         # Critic网络
         self.critic = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(hidden_size, 1)
+            nn.LayerNorm(hidden_size // 2),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_size // 2, 1)
         )
+        
+        # 初始化权重
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            nn.init.orthogonal_(module.weight, gain=np.sqrt(2))
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
     
     def forward(self, x):
         x = self.input_ln(x)
         lstm_out, _ = self.lstm(x)
-        features = lstm_out[:, -1, :]  # 取最后一个时间步
+        features = lstm_out[:, -1, :]
         
-        # Actor: 输出动作概率分布
-        action_probs = F.softmax(self.actor(features), dim=-1)
+        shared_features = self.shared(features)
         
-        # Critic: 输出状态值
-        state_value = self.critic(features)
+        # Actor: 使用temperature参数使输出概率分布更平滑
+        action_logits = self.actor(shared_features)
+        action_probs = F.softmax(action_logits / 1.0, dim=-1)
+        
+        # Critic
+        state_value = self.critic(shared_features)
         
         return action_probs, state_value
 
@@ -164,6 +186,12 @@ class A2CAgent:
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-4)
         self.gamma = 0.99
         self.steps = 0
+        
+        # 探索参数
+        self.eps_start = 1.0
+        self.eps_end = 0.1
+        self.eps_decay = 0.999
+        self.epsilon = self.eps_start
         
         # 保存相关
         self.save_interval = 100
@@ -255,7 +283,8 @@ class A2CAgent:
             avg_queue = np.mean([s['queue_length'] for s in states])
             avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
             avg_confidence = np.mean([s['avg_confidence'] for s in states])
-            avg_latency = np.mean([s['latency'] for s in states])
+            # 为了数值不要太大才除以一个比例因子
+            avg_latency = np.mean([s['latency'] for s in states]) / self.queue_threshold_length
             
             # 使用队列长度比例作为平滑权重
             queue_ratio = min(avg_queue / self.queue_max_length, 1.0)  # 确保不超过1
@@ -274,7 +303,7 @@ class A2CAgent:
             
             if (action == 1 and current_idx == len(self.model_levels)-1) or \
             (action == -1 and current_idx == 0):
-                illegal_penalty = -1.0
+                illegal_penalty = -0.5
                 logger.info(f"Applied illegal action penalty: {illegal_penalty}")
                 reward += illegal_penalty
             
@@ -306,15 +335,25 @@ class A2CAgent:
         # 如果有上一次的动作信息，进行策略更新
         if self.last_action_info is not None:
             self._update_policy(current_state)
-                
-        # 选择新动作
-        action_probs, current_value = self.network(current_state)
-                
-        # 对动作采样
-        with torch.no_grad():
-            action_dist = torch.distributions.Categorical(action_probs)
-            action = action_dist.sample()
-            log_prob = action_dist.log_prob(action)
+        
+        # 更新epsilon
+        self.epsilon = max(self.eps_end, self.eps_start * (self.eps_decay ** self.steps))
+        
+        # Epsilon-greedy策略
+        if random.random() < self.epsilon:
+            # 探索：随机选择动作
+            action = torch.tensor([[random.randint(0, 2)]], device=self.device)
+            action_probs, current_value = self.network(current_state)
+            log_prob = torch.log(action_probs[0, action[0]] + 1e-10)
+            logger.info(f"Exploring with epsilon = {self.epsilon:.3f}")
+        else:
+            # 利用：使用策略网络选择动作
+            with torch.no_grad():
+                action_probs, current_value = self.network(current_state)
+                action_dist = torch.distributions.Categorical(action_probs)
+                action = action_dist.sample()
+                log_prob = action_dist.log_prob(action)
+                logger.info(f"Exploiting with epsilon = {self.epsilon:.3f}")
         
         # 将动作转换为实际的模型选择
         current_model = current_stats['model_name']
@@ -331,7 +370,7 @@ class A2CAgent:
         
         selected_model = self.model_levels[next_idx]
         
-        # 保存当前动作信息
+        # 记录当前动作信息
         self.last_action_info = {
             'state': current_state,
             'action': action,
@@ -340,8 +379,20 @@ class A2CAgent:
             'action_probs': action_probs
         }
             
+        # 记录探索统计信息
+        if self.steps % 100 == 0:
+            logger.info(f"""
+            Action Selection Stats:
+            - Step: {self.steps}
+            - Epsilon: {self.epsilon:.3f}
+            - Mode: {"Exploration" if random.random() < self.epsilon else "Exploitation"}
+            - Current Model: {current_model}
+            - Selected Model: {selected_model}
+            - Action Value: {action_value}
+            """)
+            
         return selected_model
-
+    
     def _update_policy(self, current_state):
         """使用当前状态更新上一个动作的策略"""
         if not self.last_action_info:
@@ -368,7 +419,7 @@ class A2CAgent:
             
             # 进行反向传播
             self.optimizer.zero_grad()
-            loss.backward(retain_graph=True)  # 添加 retain_graph=True
+            loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
             self.optimizer.step()
             
@@ -388,6 +439,7 @@ class A2CAgent:
         Reward: {reward:.3f}
         TD Error: {td_error.item():.3f}
         Loss: {loss.item():.3f}
+        Epsilon: {self.epsilon:.3f}
         """)
         
 class ModelSwitcher:
