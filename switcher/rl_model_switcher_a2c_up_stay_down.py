@@ -206,7 +206,8 @@ class A2CAgent:
 
         # 获取配置
         self.queue_max_length = config.get_queue_max_length()
-        self.queue_threshold_length = config.get_queue_threshold_length()
+        self.queue_low_threshold_length = config.get_queue_low_threshold_length()
+        self.queue_high_threshold_length = config.get_queue_high_threshold_length()
 
     def save_model(self, step):
         """保存模型到文件"""
@@ -284,14 +285,14 @@ class A2CAgent:
             avg_accuracy = np.mean([s['accuracy'] for s in states]) / 100.0  # 归一化到0-1
             avg_confidence = np.mean([s['avg_confidence'] for s in states])
             # 为了数值不要太大才除以一个比例因子
-            avg_latency = np.mean([s['latency'] for s in states]) / self.queue_threshold_length
+            avg_latency = np.mean([s['latency'] for s in states]) / self.queue_low_threshold_length
             
             # 使用队列长度比例作为平滑权重
-            queue_ratio = min(avg_queue / self.queue_max_length, 1.0)  # 确保不超过1
+            queue_ratio = avg_queue / self.queue_high_threshold_length
             
             # queue_ratio越大，越偏向延迟优化
-            w1 = 1 - queue_ratio  # 精度权重，队列满时为0
-            w2 = queue_ratio      # 延迟权重，队列满时为1
+            w1 = max(1 - queue_ratio, 0)
+            w2 = queue_ratio
             
             # 计算基础奖励
             reward = w1 * (avg_accuracy + avg_confidence) - w2 * avg_latency

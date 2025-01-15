@@ -55,9 +55,13 @@ class Config:
         """Get maximum queue length for dynamic stream"""
         return self._config['queue']['max_length']
     
-    def get_queue_threshold_length(self):
-        """Get queue length threshold for model switching"""
-        return self._config['queue']['threshold_length']
+    def get_queue_low_threshold_length(self):
+        """Get queue low length threshold for model switching"""
+        return self._config['queue']['low_threshold_length']
+    
+    def get_queue_high_threshold_length(self):
+        """Get queue high length threshold for model switching"""
+        return self._config['queue']['high_threshold_length']
 
 # Create a singleton instance
 config = Config()
