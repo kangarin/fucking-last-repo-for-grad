@@ -35,6 +35,6 @@ dynamic_stream:
 
 # queue length
 queue:
-  max_length: 1000
+  max_length: 100
   low_threshold_length: 10
   high_threshold_length: 50
