@@ -154,7 +154,7 @@ class ActorCritic(nn.Module):
         return action_probs, state_value
 
 class A2CAgent:
-    def __init__(self, state_buffer, observation_duration=10.0, decision_duration=5.0):
+    def __init__(self, state_buffer, observation_duration=10.0, decision_duration=10.0):
         self.state_buffer = state_buffer
         self.observation_duration = observation_duration
         self.decision_duration = decision_duration
@@ -460,7 +460,7 @@ class ModelSwitcher:
         self.state_buffer = GlobalStateBuffer(max_duration=60.0)
         self.agent = A2CAgent(self.state_buffer, 
                             observation_duration=10.0,
-                            decision_duration=5.0)
+                            decision_duration=10.0)
         
         # 决策相关参数
         self.last_decision_time = time.time()
