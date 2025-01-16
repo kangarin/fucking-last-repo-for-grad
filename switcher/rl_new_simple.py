@@ -68,7 +68,7 @@ class ActorCritic(nn.Module):
         return action_probs, state_value
 
 class SimpleAgent:
-    def __init__(self, stats_update_interval=10.0):
+    def __init__(self, stats_update_interval=5.0):
         # 网络参数
         self.base_feature_size = 11
         self.model_levels = ['n', 's', 'm', 'l', 'x']
@@ -302,7 +302,7 @@ class SimpleAgent:
                 if current_state:
                     # 2. 如果有上一个动作的信息，更新策略
                     if last_state is not None and last_action is not None:
-                        reward = self.compute_reward(current_state)
+                        reward = self.compute_reward(current_state, self.actions[last_action.item()])
                         self.update_policy(last_state, current_state, 
                                         last_action, last_log_prob, reward)
                     
