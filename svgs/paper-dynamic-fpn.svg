@@ -1,0 +1,79 @@
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景 -->
+    <rect width="800" height="500" fill="white"/>
+    
+    <!-- 主标题 -->
+    <text x="400" y="40" text-anchor="middle" font-size="20" font-weight="bold">动态特征金字塔网络结构</text>
+    
+    <!-- C5/P5特征图路径 -->
+    <rect x="100" y="80" width="120" height="50" fill="#e1e1e1" stroke="black"/>
+    <text x="160" y="110" text-anchor="middle">C5 (192通道)</text>
+    
+    <!-- C4特征图路径 -->
+    <rect x="100" y="160" width="120" height="50" fill="#e1e1e1" stroke="black"/>
+    <text x="160" y="190" text-anchor="middle">C4 (136通道)</text>
+    
+    <!-- C3特征图路径 -->
+    <rect x="100" y="240" width="120" height="50" fill="#e1e1e1" stroke="black"/>
+    <text x="160" y="270" text-anchor="middle">C3 (96通道)</text>
+    
+    <!-- C2特征图路径 -->
+    <rect x="100" y="320" width="120" height="50" fill="#e1e1e1" stroke="black"/>
+    <text x="160" y="350" text-anchor="middle">C2 (48通道)</text>
+    
+    <!-- 动态卷积模块 -->
+    <rect x="300" y="80" width="120" height="50" fill="#ff9966" stroke="black"/>
+    <text x="360" y="110" text-anchor="middle">动态卷积</text>
+    
+    <rect x="300" y="160" width="120" height="50" fill="#ff9966" stroke="black"/>
+    <text x="360" y="190" text-anchor="middle">动态卷积</text>
+    
+    <rect x="300" y="240" width="120" height="50" fill="#ff9966" stroke="black"/>
+    <text x="360" y="270" text-anchor="middle">动态卷积</text>
+    
+    <rect x="300" y="320" width="120" height="50" fill="#ff9966" stroke="black"/>
+    <text x="360" y="350" text-anchor="middle">动态卷积</text>
+    
+    <!-- 输出特征图 -->
+    <rect x="600" y="80" width="120" height="50" fill="#99cc99" stroke="black"/>
+    <text x="660" y="110" text-anchor="middle">P5</text>
+    
+    <rect x="600" y="160" width="120" height="50" fill="#99cc99" stroke="black"/>
+    <text x="660" y="190" text-anchor="middle">P4</text>
+    
+    <rect x="600" y="240" width="120" height="50" fill="#99cc99" stroke="black"/>
+    <text x="660" y="270" text-anchor="middle">P3</text>
+    
+    <rect x="600" y="320" width="120" height="50" fill="#99cc99" stroke="black"/>
+    <text x="660" y="350" text-anchor="middle">P2</text>
+
+    <!-- 最大池化层 -->
+    <rect x="600" y="400" width="120" height="50" fill="#9999cc" stroke="black"/>
+    <text x="660" y="430" text-anchor="middle">Pool</text>
+    
+    <!-- 连接线 -->
+    <path d="M220,105 H300" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M220,185 H300" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M220,265 H300" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M220,345 H300" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    
+    <path d="M420,105 H600" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M420,185 H600" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M420,265 H600" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M420,345 H600" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    
+    <!-- 上采样路径 -->
+    <path d="M660,130 L660,160" stroke="black" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M660,210 L660,240" stroke="black" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M660,290 L660,320" stroke="black" stroke-dasharray="5,5" fill="none" marker-end="url(#arrowhead)"/>
+    
+    <!-- 最大池化路径 -->
+    <path d="M660,350 L660,400" stroke="black" fill="none" marker-end="url(#arrowhead)"/>
+    
+    <!-- 箭头定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+        </marker>
+    </defs>
+</svg>

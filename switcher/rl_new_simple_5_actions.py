@@ -14,10 +14,12 @@ import math
 from torch.nn import functional as F
 import csv
 from datetime import datetime
+
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 from config import config
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,54 +60,42 @@ class StatsTracker:
 
 class GlobalStateBuffer:
     def __init__(self, max_duration=60.0):
-        """
-        初始化状态缓冲器
-        max_duration: 最大保存时长（秒）
-        """
         self.max_duration = max_duration
         self.buffer = deque()
         
     def add_state(self, state):
-        """添加新状态，带时间戳"""
         state['timestamp'] = time.time()
         self.buffer.append(state)
         self._cleanup_old_states()
         
     def _cleanup_old_states(self):
-        """清理过期状态"""
         current_time = time.time()
         while self.buffer and current_time - self.buffer[0]['timestamp'] > self.max_duration:
             self.buffer.popleft()
     
-    def get_observation(self, duration):
-        """获取指定时长内的观察序列"""
-        if not self.buffer:
-            return None
-        
+    def get_reward_window(self, duration):
         current_time = time.time()
         states = [
             state for state in self.buffer 
             if current_time - state['timestamp'] <= duration
         ]
         return sorted(states, key=lambda x: x['timestamp']) if states else None
-    
-    def get_reward_window(self, duration):
-        """获取用于计算奖励的时间窗口"""
-        return self.get_observation(duration)
 
 class ActorCritic(nn.Module):
-    def __init__(self, input_size, hidden_size, lstm_layers=1):
+    def __init__(self, input_size, hidden_size):
         super().__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         
         # 特征提取层
         self.input_ln = nn.LayerNorm(input_size)
-        self.lstm = nn.LSTM(input_size, hidden_size, lstm_layers, 
-                           batch_first=True, dropout=0.1)
         
         # 共享特征层
         self.shared = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.LayerNorm(hidden_size),
+            nn.Dropout(0.1),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
             nn.LayerNorm(hidden_size),
@@ -118,7 +108,7 @@ class ActorCritic(nn.Module):
             nn.ReLU(),
             nn.LayerNorm(hidden_size // 2),
             nn.Dropout(0.1),
-            nn.Linear(hidden_size // 2, 3)
+            nn.Linear(hidden_size // 2, 5)  # Changed from 3 to 5 actions
         )
         
         # Critic网络
@@ -141,13 +131,10 @@ class ActorCritic(nn.Module):
     
     def forward(self, x):
         x = self.input_ln(x)
-        lstm_out, _ = self.lstm(x)
-        features = lstm_out[:, -1, :]  # 取最后一个时间步的输出
-        
-        shared_features = self.shared(features)
+        shared_features = self.shared(x)
         
         action_logits = self.actor(shared_features)
-        action_probs = F.softmax(action_logits / 1.0, dim=-1)
+        action_probs = F.softmax(action_logits, dim=-1)
         
         state_value = self.critic(shared_features)
         
@@ -159,7 +146,7 @@ class A2CAgent:
         self.observation_duration = observation_duration
         self.decision_duration = decision_duration
         self.model_levels = ['n', 's', 'm', 'l', 'x']
-        self.actions = [1, 0, -1]  # 升档、保持、降档
+        self.actions = [2, 1, 0, -1, -2]  # 升两档、升一档、保持、降一档、降两档
         
         # 网络参数
         self.feature_size = 16  # 11 + 5(one-hot)
@@ -199,21 +186,7 @@ class A2CAgent:
         self.queue_low_threshold_length = config.get_queue_low_threshold_length()
         self.queue_high_threshold_length = config.get_queue_high_threshold_length()
 
-    def save_model(self, step):
-        """保存模型到文件"""
-        try:
-            model_path = self.model_save_dir / f'model_step_{step}.pt'
-            torch.save({
-                'step': step,
-                'model_state_dict': self.network.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-            }, model_path)
-            logger.info(f"Model saved to {model_path}")
-        except Exception as e:
-            logger.error(f"Error saving model: {e}")
-
     def normalize_state(self, state):
-        """归一化状态数据并添加模型one-hot编码"""
         try:
             # 基础特征归一化
             base_features = {
@@ -238,26 +211,10 @@ class A2CAgent:
             
             # 合并所有特征
             all_features = list(base_features.values()) + one_hot
-            return all_features
-            
+            return torch.FloatTensor(all_features).to(self.device)
         except Exception as e:
             logger.error(f"Error normalizing state: {e}")
             return None
-
-    def state_to_tensor(self, states):
-        """将状态序列转换为tensor"""
-        if not states:
-            return None
-            
-        sequence = []
-        for state in states:
-            features = self.normalize_state(state)
-            if features is None:
-                return None
-            sequence.append(features)
-            
-        # 直接转换为tensor，不需要pad到固定长度
-        return torch.FloatTensor([sequence]).to(self.device)  # [1, seq_len, feature_size]
 
     def compute_reward(self, states, action_idx):
         """使用时间加权的方式计算奖励"""
@@ -274,7 +231,6 @@ class A2CAgent:
             weighted_metrics = {
                 'accuracy': 0,
                 'latency': 0,
-                'processing_latency': 0,
                 'queue_length': 0,
                 'avg_confidence': 0
             }
@@ -300,9 +256,36 @@ class A2CAgent:
             w1 = max(1 - queue_ratio, 0)  # 准确率权重
             w2 = queue_ratio  # 延迟权重
 
-            reward = 2 * w1 * (avg_metrics['accuracy']/100.0 + avg_metrics['avg_confidence']) - \
-                    w2 * (avg_metrics['processing_latency'])
+            reward = w1 * (avg_metrics['accuracy']/100.0 + avg_metrics['avg_confidence']) - \
+                    w2 * (avg_metrics['latency'] / self.queue_low_threshold_length)
 
+            # 检查非法动作
+            current_model = states[0]['model_name']  # 使用初始状态检查
+            current_idx = self.model_levels.index(current_model)
+            action = self.actions[action_idx]
+            
+            # 检查非法的升档动作
+            if action > 0:
+                if current_idx == len(self.model_levels)-1:
+                    illegal_penalty = -0.5 if action == 1 else -1.0
+                    logger.info(f"Applied illegal upgrade penalty: {illegal_penalty}")
+                    reward += illegal_penalty
+                elif action == 2 and current_idx == len(self.model_levels)-2:
+                    illegal_penalty = -1.0
+                    logger.info(f"Applied illegal double upgrade penalty: {illegal_penalty}")
+                    reward += illegal_penalty
+            
+            # 检查非法的降档动作
+            if action < 0:
+                if current_idx == 0:
+                    illegal_penalty = -0.5 if action == -1 else -1.0
+                    logger.info(f"Applied illegal downgrade penalty: {illegal_penalty}")
+                    reward += illegal_penalty
+                elif action == -2 and current_idx == 1:
+                    illegal_penalty = -1.0
+                    logger.info(f"Applied illegal double downgrade penalty: {illegal_penalty}")
+                    reward += illegal_penalty
+            
             logger.info(f"""Reward breakdown:
                 Queue Length: {avg_metrics['queue_length']:.1f} (Ratio: {queue_ratio:.2f})
                 Weights: accuracy={w1:.2f}, latency={w2:.2f}
@@ -319,18 +302,13 @@ class A2CAgent:
         
     def select_action(self, current_stats):
         """选择动作并转换为实际模型"""
-        # 获取当前观察序列
-        current_observation = self.state_buffer.get_observation(self.observation_duration)
-        if not current_observation:
-            return random.choice(self.model_levels)
-                
-        current_state = self.state_to_tensor(current_observation)
-        if current_state is None:
+        state = self.normalize_state(current_stats)
+        if state is None:
             return random.choice(self.model_levels)
                 
         # 如果有上一次的动作信息，进行策略更新
         if self.last_action_info is not None:
-            self._update_policy(current_state)
+            self._update_policy(state)
         
         # 更新epsilon
         self.epsilon = max(self.eps_end, self.eps_start * (self.eps_decay ** self.steps))
@@ -338,14 +316,14 @@ class A2CAgent:
         # Epsilon-greedy策略
         if random.random() < self.epsilon:
             # 探索：随机选择动作
-            action = torch.tensor([[random.randint(0, 2)]], device=self.device)
-            action_probs, current_value = self.network(current_state)
+            action = torch.tensor([[random.randint(0, 4)]], device=self.device)
+            action_probs, current_value = self.network(state.unsqueeze(0))
             log_prob = torch.log(action_probs[0, action[0]] + 1e-10)
             logger.info(f"Exploring with epsilon = {self.epsilon:.3f}")
         else:
             # 利用：使用策略网络选择动作
             with torch.no_grad():
-                action_probs, current_value = self.network(current_state)
+                action_probs, current_value = self.network(state.unsqueeze(0))
                 action_dist = torch.distributions.Categorical(action_probs)
                 action = action_dist.sample()
                 log_prob = action_dist.log_prob(action)
@@ -357,18 +335,20 @@ class A2CAgent:
         action_value = self.actions[action.item()]
         
         # 根据动作调整模型等级
-        if action_value == 1:  # 升档
-            next_idx = min(current_idx + 1, len(self.model_levels)-1)
-        elif action_value == -1:  # 降档
-            next_idx = max(current_idx - 1, 0)
-        else:  # 保持
+        if action_value > 0:  # 升档
+            steps = 2 if action_value == 2 else 1
+            next_idx = min(current_idx + steps, len(self.model_levels)-1)
+        elif action_value < 0:  # 降档
+            steps = 2 if action_value == -2 else 1
+            next_idx = max(current_idx - steps, 0)
+        else:  #
             next_idx = current_idx
         
         selected_model = self.model_levels[next_idx]
         
         # 记录当前动作信息
         self.last_action_info = {
-            'state': current_state,
+            'state': state.unsqueeze(0),
             'action': action,
             'log_prob': log_prob,
             'value': current_value,
@@ -403,7 +383,7 @@ class A2CAgent:
             
         # 计算新的状态值
         with torch.set_grad_enabled(True):
-            _, next_value = self.network(current_state)
+            _, next_value = self.network(current_state.unsqueeze(0))
             
             # 计算TD误差
             td_error = reward_tensor + self.gamma * next_value - self.last_action_info['value']
@@ -437,6 +417,19 @@ class A2CAgent:
         Loss: {loss.item():.3f}
         Epsilon: {self.epsilon:.3f}
         """)
+
+    def save_model(self, step):
+        """保存模型到文件"""
+        try:
+            model_path = self.model_save_dir / f'model_step_{step}.pt'
+            torch.save({
+                'step': step,
+                'model_state_dict': self.network.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+            }, model_path)
+            logger.info(f"Model saved to {model_path}")
+        except Exception as e:
+            logger.error(f"Error saving model: {e}")
 
 class ModelSwitcher:
     def __init__(self, stats_update_interval=0.5):

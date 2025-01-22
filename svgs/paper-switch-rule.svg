@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- 背景 -->
+  <rect width="800" height="500" fill="#ffffff"/>
+  
+  <!-- 标题 -->
+  <text x="400" y="40" text-anchor="middle" font-size="20" font-weight="bold" fill="#333">基于规则的模型自适应框架</text>
+  
+  <!-- 系统状态监控模块 -->
+  <rect x="100" y="100" width="160" height="80" rx="5" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="180" y="145" text-anchor="middle" font-size="14" fill="#1976d2" font-weight="bold">系统状态监控</text>
+  <text x="180" y="165" text-anchor="middle" font-size="12" fill="#1976d2">实时延迟/目标帧率</text>
+
+  <!-- 模型性能校准模块 -->
+  <rect x="320" y="100" width="160" height="80" rx="5" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="400" y="145" text-anchor="middle" font-size="14" fill="#7b1fa2" font-weight="bold">模型性能校准</text>
+  <text x="400" y="165" text-anchor="middle" font-size="12" fill="#7b1fa2">EWMA延迟估计</text>
+
+  <!-- 自适应决策模块 -->
+  <rect x="540" y="100" width="160" height="80" rx="5" fill="#e8f5e9" stroke="#388e3c" stroke-width="2"/>
+  <text x="620" y="145" text-anchor="middle" font-size="14" fill="#388e3c" font-weight="bold">自适应决策</text>
+  <text x="620" y="165" text-anchor="middle" font-size="12" fill="#388e3c">模型选择规则</text>
+
+  <!-- 候选模型池 -->
+  <rect x="100" y="300" width="600" height="100" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+  <text x="400" y="330" text-anchor="middle" font-size="14" fill="#e65100" font-weight="bold">YOLOv5模型池</text>
+  
+  <!-- 模型列表 -->
+  <g font-size="12" fill="#e65100">
+    <text x="150" y="360" text-anchor="middle">YOLOv5n</text>
+    <text x="270" y="360" text-anchor="middle">YOLOv5s</text>
+    <text x="400" y="360" text-anchor="middle">YOLOv5m</text>
+    <text x="530" y="360" text-anchor="middle">YOLOv5l</text>
+    <text x="650" y="360" text-anchor="middle">YOLOv5x</text>
+  </g>
+
+  <!-- 连接线和箭头 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+  
+  <!-- 水平连接线 -->
+  <line x1="260" y1="140" x2="320" y2="140" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="480" y1="140" x2="540" y2="140" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- 垂直连接线 -->
+  <path d="M180,180 L180,300" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" fill="none"/>
+  <path d="M400,180 L400,300" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" fill="none"/>
+  <path d="M620,180 L620,300" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)" fill="none"/>
+</svg>

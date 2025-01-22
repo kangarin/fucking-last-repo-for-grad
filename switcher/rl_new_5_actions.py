@@ -118,7 +118,7 @@ class ActorCritic(nn.Module):
             nn.ReLU(),
             nn.LayerNorm(hidden_size // 2),
             nn.Dropout(0.1),
-            nn.Linear(hidden_size // 2, 3)
+            nn.Linear(hidden_size // 2, 5)
         )
         
         # Critic网络
@@ -154,12 +154,12 @@ class ActorCritic(nn.Module):
         return action_probs, state_value
 
 class A2CAgent:
-    def __init__(self, state_buffer, observation_duration=10.0, decision_duration=10.0):
+    def __init__(self, state_buffer, observation_duration=5.0, decision_duration=5.0):
         self.state_buffer = state_buffer
         self.observation_duration = observation_duration
         self.decision_duration = decision_duration
         self.model_levels = ['n', 's', 'm', 'l', 'x']
-        self.actions = [1, 0, -1]  # 升档、保持、降档
+        self.actions = [2, 1, 0, -1, -2]  # 升两档、升一档、保持、降一档、降两档
         
         # 网络参数
         self.feature_size = 16  # 11 + 5(one-hot)
@@ -274,8 +274,8 @@ class A2CAgent:
             weighted_metrics = {
                 'accuracy': 0,
                 'latency': 0,
-                'processing_latency': 0,
                 'queue_length': 0,
+                'processing_latency': 0,
                 'avg_confidence': 0
             }
             total_weight = 0
@@ -302,7 +302,7 @@ class A2CAgent:
 
             reward = 2 * w1 * (avg_metrics['accuracy']/100.0 + avg_metrics['avg_confidence']) - \
                     w2 * (avg_metrics['processing_latency'])
-
+            
             logger.info(f"""Reward breakdown:
                 Queue Length: {avg_metrics['queue_length']:.1f} (Ratio: {queue_ratio:.2f})
                 Weights: accuracy={w1:.2f}, latency={w2:.2f}
@@ -338,7 +338,7 @@ class A2CAgent:
         # Epsilon-greedy策略
         if random.random() < self.epsilon:
             # 探索：随机选择动作
-            action = torch.tensor([[random.randint(0, 2)]], device=self.device)
+            action = torch.tensor([[random.randint(0, 4)]], device=self.device)  # Changed from 2 to 4
             action_probs, current_value = self.network(current_state)
             log_prob = torch.log(action_probs[0, action[0]] + 1e-10)
             logger.info(f"Exploring with epsilon = {self.epsilon:.3f}")
@@ -357,10 +357,12 @@ class A2CAgent:
         action_value = self.actions[action.item()]
         
         # 根据动作调整模型等级
-        if action_value == 1:  # 升档
-            next_idx = min(current_idx + 1, len(self.model_levels)-1)
-        elif action_value == -1:  # 降档
-            next_idx = max(current_idx - 1, 0)
+        if action_value > 0:  # 升档
+            steps = 2 if action_value == 2 else 1
+            next_idx = min(current_idx + steps, len(self.model_levels)-1)
+        elif action_value < 0:  # 降档
+            steps = 2 if action_value == -2 else 1
+            next_idx = max(current_idx - steps, 0)
         else:  # 保持
             next_idx = current_idx
         

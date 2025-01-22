@@ -58,6 +58,7 @@ class ThompsonSwitcher:
 
     def compute_reward(self, stats):
         """计算即时奖励"""
+        # TODO：改成推理延迟貌似更合理
         queue_ratio = stats['queue_length'] / self.queue_high_threshold
         w1 = max(1 - queue_ratio, 0)  # 准确率权重
         w2 = queue_ratio  # 延迟权重

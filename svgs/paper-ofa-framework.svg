@@ -1,0 +1,75 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景和标题样式 -->
+    <defs>
+        <linearGradient id="moduleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#f0f7ff;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#e6f0ff;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+
+    <!-- 模块1：目标检测超网络架构设计 -->
+    <g transform="translate(50,30)">
+        <rect x="0" y="0" width="220" height="300" rx="10" 
+              fill="url(#moduleGrad)" stroke="#2196F3" stroke-width="2"/>
+        <text x="110" y="30" text-anchor="middle" 
+              font-weight="bold" fill="#1565C0">目标检测超网络架构设计</text>
+        
+        <!-- 架构内容 -->
+        <rect x="20" y="50" width="180" height="60" rx="5" fill="#BBDEFB" stroke="#1565C0"/>
+        <text x="110" y="85" text-anchor="middle">OFA骨干网络</text>
+        
+        <rect x="20" y="130" width="180" height="60" rx="5" fill="#BBDEFB" stroke="#1565C0"/>
+        <text x="110" y="165" text-anchor="middle">动态特征融合</text>
+        
+        <rect x="20" y="210" width="180" height="60" rx="5" fill="#BBDEFB" stroke="#1565C0"/>
+        <text x="110" y="245" text-anchor="middle">可配置目标检测头</text>
+    </g>
+
+    <!-- 模块2：超网络训练 -->
+    <g transform="translate(290,30)">
+        <rect x="0" y="0" width="220" height="300" rx="10" 
+              fill="url(#moduleGrad)" stroke="#4CAF50" stroke-width="2"/>
+        <text x="110" y="30" text-anchor="middle" 
+              font-weight="bold" fill="#2E7D32">超网络训练</text>
+        
+        <!-- 训练内容 -->
+        <rect x="20" y="50" width="180" height="60" rx="5" fill="#C8E6C9" stroke="#2E7D32"/>
+        <text x="110" y="85" text-anchor="middle">随机子网络采样</text>
+        
+        <rect x="20" y="130" width="180" height="60" rx="5" fill="#C8E6C9" stroke="#2E7D32"/>
+        <text x="110" y="165" text-anchor="middle">特征图知识蒸馏</text>
+        
+        <rect x="20" y="210" width="180" height="60" rx="5" fill="#C8E6C9" stroke="#2E7D32"/>
+        <text x="110" y="245" text-anchor="middle">BN统计量校准</text>
+    </g>
+
+    <!-- 模块3：架构搜索 -->
+    <g transform="translate(530,30)">
+        <rect x="0" y="0" width="220" height="300" rx="10" 
+              fill="url(#moduleGrad)" stroke="#FF5722" stroke-width="2"/>
+        <text x="110" y="30" text-anchor="middle" 
+              font-weight="bold" fill="#D84315">架构搜索</text>
+        
+        <!-- 搜索内容 -->
+        <rect x="20" y="50" width="180" height="60" rx="5" fill="#FFCCBC" stroke="#D84315"/>
+        <text x="110" y="85" text-anchor="middle">服务端精度评估</text>
+        
+        <rect x="20" y="130" width="180" height="60" rx="5" fill="#FFCCBC" stroke="#D84315"/>
+        <text x="110" y="165" text-anchor="middle">客户端延迟测试</text>
+        
+        <rect x="20" y="210" width="180" height="60" rx="5" fill="#FFCCBC" stroke="#D84315"/>
+        <text x="110" y="245" text-anchor="middle">帕累托最优解</text>
+    </g>
+
+    <!-- 连接箭头 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+        </marker>
+    </defs>
+    <line x1="270" y1="180" x2="290" y2="180" stroke="#666" 
+          stroke-width="2" marker-end="url(#arrowhead)"/>
+    <line x1="510" y1="180" x2="530" y2="180" stroke="#666" 
+          stroke-width="2" marker-end="url(#arrowhead)"/>
+</svg>
