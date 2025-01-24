@@ -272,7 +272,7 @@ class A2CAgent:
             w2 = queue_ratio  # 延迟权重
 
             reward = 2 * w1 * (state['accuracy']/100.0 + state['avg_confidence']) - \
-                    w2 * (state['latency'] / self.queue_low_threshold_length)
+                    2 * w2 * (state['processing_latency'])
             
             logger.info(f"""Reward breakdown:
                 Queue Length: {state['queue_length']:.1f} (Ratio: {queue_ratio:.2f})
