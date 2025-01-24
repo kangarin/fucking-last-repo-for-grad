@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500">
+    <!-- Definitions -->
+    <defs>
+        <marker id="arrowhead3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+        </marker>
+        
+        <!-- Different gradients for different components -->
+        <linearGradient id="envGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ffcccc"/>
+            <stop offset="100%" style="stop-color:#ff9999"/>
+        </linearGradient>
+        <linearGradient id="agentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ccffcc"/>
+            <stop offset="100%" style="stop-color:#99ff99"/>
+        </linearGradient>
+        <linearGradient id="bufferGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#cce5ff"/>
+            <stop offset="100%" style="stop-color:#99ccff"/>
+        </linearGradient>
+        <linearGradient id="networkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ffe5cc"/>
+            <stop offset="100%" style="stop-color:#ffcc99"/>
+        </linearGradient>
+        <linearGradient id="rewardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#e6ccff"/>
+            <stop offset="100%" style="stop-color:#cc99ff"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Environment (Processing Server) -->
+    <rect x="50" y="50" width="200" height="100" rx="10" fill="url(#envGradient)" stroke="#333" stroke-width="2"/>
+    <text x="150" y="105" text-anchor="middle" fill="#333" font-weight="bold">Processing Server</text>
+
+    <!-- Global State Buffer -->
+    <rect x="400" y="50" width="200" height="100" rx="10" fill="url(#bufferGradient)" stroke="#333" stroke-width="2"/>
+    <text x="500" y="105" text-anchor="middle" fill="#333" font-weight="bold">Global State Buffer</text>
+
+    <!-- A2C Agent -->
+    <rect x="300" y="250" width="400" height="200" rx="10" fill="url(#agentGradient)" stroke="#333" stroke-width="2"/>
+    <text x="500" y="280" text-anchor="middle" fill="#333" font-weight="bold">A2C Agent</text>
+
+    <!-- Actor-Critic Network -->
+    <rect x="350" y="320" width="300" height="100" rx="5" fill="url(#networkGradient)" stroke="#333" stroke-width="2"/>
+    <text x="500" y="375" text-anchor="middle" fill="#333" font-weight="bold">Actor-Critic Network</text>
+
+    <!-- Reward Calculator -->
+    <rect x="700" y="50" width="200" height="100" rx="10" fill="url(#rewardGradient)" stroke="#333" stroke-width="2"/>
+    <text x="800" y="105" text-anchor="middle" fill="#333" font-weight="bold">Reward Calculator</text>
+
+    <!-- Stats Tracker -->
+    <rect x="800" y="250" width="150" height="80" rx="10" fill="url(#bufferGradient)" stroke="#333" stroke-width="2"/>
+    <text x="875" y="295" text-anchor="middle" fill="#333" font-weight="bold">Stats Tracker</text>
+
+    <!-- Data Flow Arrows -->
+    <!-- Server to Buffer -->
+    <path d="M 250 100 L 400 100" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="325" y="85" text-anchor="middle" fill="#666" font-size="12">System Stats</text>
+    
+    <!-- Buffer to Agent -->
+    <path d="M 500 150 L 500 250" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="550" y="200" text-anchor="start" fill="#666" font-size="12">State History</text>
+    <text x="550" y="220" text-anchor="start" fill="#666" font-size="12">(Time series/Single)</text>
+    
+    <!-- Agent to Server -->
+    <path d="M 300 350 L 150 150" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="200" y="200" text-anchor="middle" fill="#666" font-size="12">Model Switch</text>
+    <text x="200" y="220" text-anchor="middle" fill="#666" font-size="12">(+1/0/-1)</text>
+    
+    <!-- Buffer to Reward -->
+    <path d="M 600 100 L 700 100" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="650" y="85" text-anchor="middle" fill="#666" font-size="12">State Window</text>
+    
+    <!-- Reward to Agent -->
+    <path d="M 800 150 L 600 250" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="750" y="200" text-anchor="middle" fill="#666" font-size="12">Time-weighted Reward</text>
+    
+    <!-- Agent to Stats -->
+    <path d="M 700 350 L 800 290" stroke="#333" stroke-width="2" marker-end="url(#arrowhead3)" fill="none"/>
+    <text x="750" y="300" text-anchor="middle" fill="#666" font-size="12">Training Stats</text>
+</svg>

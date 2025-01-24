@@ -1,0 +1,40 @@
+sequenceDiagram
+    participant MS as ModelSwitcher
+    participant PS as Processing Server
+    participant GB as Global Buffer
+    participant Agent as A2C Agent
+    participant RC as Reward Calculator
+    participant ST as Stats Tracker
+    
+    Note over MS,ST: Main Loop (0.5s interval)
+    
+    MS->>+PS: Get current stats
+    PS-->>-MS: Return system stats
+    MS->>GB: Add state to buffer
+    
+    Note over MS,ST: Decision Loop (10s interval)
+    
+    alt Time to make decision
+        MS->>GB: Get observation window
+        GB-->>MS: Return state sequence
+        MS->>Agent: Request action
+        
+        Agent->>GB: Get recent states
+        GB-->>Agent: Return state window
+        Agent->>RC: Calculate reward
+        RC-->>Agent: Return time-weighted reward
+        
+        opt Policy Update
+            Agent->>Agent: Update network
+            Agent->>ST: Record training stats
+        end
+        
+        Agent-->>MS: Return selected action
+        
+        alt Model needs change
+            MS->>+PS: Switch model
+            PS-->>-MS: Confirm switch
+        end
+    end
+    
+    Note over MS,ST: Process repeats

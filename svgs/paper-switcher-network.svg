@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">
+    <!-- Definitions -->
+    <defs>
+        <marker id="arrowhead4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+        </marker>
+        
+        <!-- Gradients -->
+        <linearGradient id="commonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#e4f1fe"/>
+            <stop offset="100%" style="stop-color:#c4e1ff"/>
+        </linearGradient>
+        <linearGradient id="simpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ffefba"/>
+            <stop offset="100%" style="stop-color:#ffd79c"/>
+        </linearGradient>
+        <linearGradient id="lstmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#ffd3b6"/>
+            <stop offset="100%" style="stop-color:#ffaaa5"/>
+        </linearGradient>
+        <linearGradient id="outputGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#a8e6cf"/>
+            <stop offset="100%" style="stop-color:#88d8b0"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Title -->
+    <text x="600" y="40" text-anchor="middle" font-size="20" font-weight="bold">Network Architecture</text>
+    
+    <!-- Simple Version (Upper Half) -->    
+    <!-- Input Features for Simple Version -->
+    <rect x="50" y="150" width="140" height="80" rx="5" fill="url(#simpleGradient)" stroke="#333" stroke-width="2"/>
+    <text x="120" y="185" text-anchor="middle" fill="#333" font-weight="bold">Input Features</text>
+    <text x="120" y="210" text-anchor="middle" fill="#333" font-size="14">(Single)</text>
+
+    <!-- Simple Version Layers -->
+    <rect x="250" y="150" width="120" height="80" rx="5" fill="url(#simpleGradient)" stroke="#333" stroke-width="2"/>
+    <text x="310" y="195" text-anchor="middle" fill="#333">Layer Norm</text>
+
+    <!-- LSTM Version (Lower Half) -->    
+    <!-- Input Features for LSTM Version -->
+    <rect x="50" y="450" width="140" height="80" rx="5" fill="url(#lstmGradient)" stroke="#333" stroke-width="2"/>
+    <text x="120" y="485" text-anchor="middle" fill="#333" font-weight="bold">Input Features</text>
+    <text x="120" y="510" text-anchor="middle" fill="#333" font-size="14">(Sequence)</text>
+
+    <!-- LSTM Version Layers -->
+    <rect x="250" y="450" width="120" height="80" rx="5" fill="url(#lstmGradient)" stroke="#333" stroke-width="2"/>
+    <text x="310" y="495" text-anchor="middle" fill="#333">Layer Norm</text>
+
+    <rect x="430" y="450" width="120" height="80" rx="5" fill="url(#lstmGradient)" stroke="#333" stroke-width="2"/>
+    <text x="490" y="495" text-anchor="middle" fill="#333">LSTM Layer</text>
+
+    <!-- Shared Architecture (Center) -->
+    <rect x="650" y="280" width="140" height="80" rx="5" fill="url(#commonGradient)" stroke="#333" stroke-width="2"/>
+    <text x="720" y="325" text-anchor="middle" fill="#333">Shared Layers</text>
+
+    <!-- Output Layers -->
+    <rect x="900" y="200" width="120" height="60" rx="5" fill="url(#outputGradient)" stroke="#333" stroke-width="2"/>
+    <text x="960" y="235" text-anchor="middle" fill="#333">Actor Network</text>
+
+    <rect x="900" y="380" width="120" height="60" rx="5" fill="url(#outputGradient)" stroke="#333" stroke-width="2"/>
+    <text x="960" y="415" text-anchor="middle" fill="#333">Critic Network</text>
+
+    <!-- Connections -->
+    <!-- Simple Version -->
+    <path d="M 190 190 L 250 190" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+    <path d="M 370 190 C 480 190, 550 280, 650 320" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+
+    <!-- LSTM Version -->
+    <path d="M 190 490 L 250 490" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+    <path d="M 370 490 L 430 490" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+    <path d="M 550 490 C 580 490, 620 400, 650 320" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+
+    <!-- Shared to Outputs -->
+    <path d="M 790 320 C 820 320, 850 230, 900 230" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+    <path d="M 790 320 C 820 320, 850 410, 900 410" stroke="#333" stroke-width="2" marker-end="url(#arrowhead4)" fill="none"/>
+</svg>
