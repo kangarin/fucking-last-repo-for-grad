@@ -172,7 +172,7 @@ class A2CAgent:
         
         # 训练参数
         self.optimizer = optim.Adam(self.network.parameters(), lr=1e-4)
-        self.gamma = 0.99
+        self.gamma = 0.95
         self.steps = 0
         
         # 探索参数
