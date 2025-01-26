@@ -1,0 +1,42 @@
+classDiagram
+    class SceneManager {
+        +streams: List[Stream]
+        +nodes: List[Node]
+        +network: Network
+        +step()
+        +reset()
+        +getObservation()
+    }
+    class Stream {
+        +generateTasks()
+        +getState()
+    }
+    class Node {
+        +processTasks()
+        +adjustConfig()
+        +getState()
+    }
+    class Network {
+        +transmitTasks()
+        +updateBandwidth()
+        +getState()
+    }
+    class Task {
+        +id: int
+        +size: float
+        +timestamps: Dict
+    }
+    class Observable {
+        +registerMetrics()
+        +collectStats()
+    }
+
+    SceneManager --> Stream : manages
+    SceneManager --> Node : manages
+    SceneManager --> Network : manages
+    Stream ..> Task : generates
+    Node ..> Task : processes
+    Network ..> Task : transmits
+    Observable <|-- Stream
+    Observable <|-- Node
+    Observable <|-- Network

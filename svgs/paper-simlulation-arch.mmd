@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph 仿真环境[仿真环境]
+        direction TB
+        subgraph 视频流[视频流]
+            S1[视频流1]
+            S2[视频流2]
+        end
+
+        subgraph 网络[网络模块]
+            BW[带宽矩阵]
+        end
+
+        subgraph 节点[处理节点]
+            N1[节点1<br>速度-质量配置<br>处理队列]
+            N2[节点2<br>速度-质量配置<br>处理队列]
+            N3[节点3<br>速度-质量配置<br>处理队列]
+        end
+
+        S1 & S2 --> |任务| 网络
+        网络 --> |分配矩阵| N1 & N2 & N3
+    end
+
+    subgraph Agent[两阶段调度器]
+        direction TB
+        O[获取观测值<br>- 流量<br>- 传输延迟<br>- 队列长度]
+        P1[第一阶段:<br>优化流量分配]
+        P2[第二阶段:<br>优化节点速度]
+        O --> P1
+        P1 --> P2
+    end
+
+    仿真环境 -->|状态| Agent
+    Agent -->|动作<br>1. 流量分配矩阵<br>2. 节点速度配置| 仿真环境

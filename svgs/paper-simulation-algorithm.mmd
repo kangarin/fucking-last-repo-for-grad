@@ -1,0 +1,58 @@
+flowchart LR
+    %% 全局样式设置
+    classDef default font-size:48px
+    
+    subgraph Init [" "]
+        direction TB
+        Title1["初始化阶段"] 
+        A1[获取当前系统状态] --> A2{存在历史决策?}
+        A2 -->|是| A3[加载上一周期最优决策]
+        A2 -->|否| A4[初始化默认配置]
+        A3 & A4 --> A5[生成有效流量分配候选集]
+    end
+
+    subgraph Phase1 [" "]
+        direction TB
+        Title2["第一阶段优化"]
+        B1{使用历史配置?} -->|是| B2[使用上一周期最优节点配置]
+        B1 -->|否| B3[使用默认最高质量配置]
+        B2 & B3 --> B4[构建TPE优化器]
+        B4 --> B5[生成候选分配方案]
+        B5 --> B6[评估方案性能]
+        B6 --> B7[更新概率模型]
+        B7 --> B8{达到收敛条件?}
+        B8 -->|否| B5
+    end
+
+    subgraph Phase2 [" "]
+        direction TB
+        Title3["第二阶段优化"]
+        C1[固定第一阶段最优分配] --> C2{使用历史配置?}
+        C2 -->|是| C3[加载历史节点配置]
+        C2 -->|否| C4[使用默认配置]
+        C3 & C4 --> C5[构建TPE优化器]
+        C5 --> C6[生成配置组合]
+        C6 --> C7[评估配置性能]
+        C7 --> C8[更新概率模型]
+        C8 --> C9{达到收敛条件?}
+        C9 -->|否| C6
+    end
+
+    subgraph Output [" "]
+        direction TB
+        Title4["结果更新"]
+        D1[生成最终决策方案]
+        D2[更新历史决策记录]
+        D3[持久化优化结果]
+        D1 --> D2 --> D3
+    end
+
+    Init --> Phase1
+    Phase1 --> Phase2
+    Phase2 --> Output
+    Output --> Init
+
+    style Init fill:#f9f,stroke:#333,stroke-width:4px
+    style Phase1 fill:#bbf,stroke:#333,stroke-width:4px
+    style Phase2 fill:#bfb,stroke:#333,stroke-width:4px
+    style Output fill:#fbf,stroke:#333,stroke-width:4px
