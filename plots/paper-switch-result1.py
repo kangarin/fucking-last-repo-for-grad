@@ -3,8 +3,8 @@ import numpy as np
 
 # Figure 1 data: Overall method comparison
 methods1 = ['Rule-based', 'LinUCB', 'Thompson\nSampling', 'A2C-LSTM\n(Best)']
-accuracy1 = [42.1, 44.3, 44.8, 46.1]  # 保持准确率不变
-latency1 = [980.5, 865.2, 758.3, 652.8]  # 调整到更合理的延迟范围
+accuracy1 = [37.1, 40.3, 42.8, 46.1]  # 保持准确率不变
+latency1 = [311.5, 297.2, 305.3, 302.8]  # 调整到更合理的延迟范围
 
 # Create figure 1
 fig1, ax1 = plt.subplots(figsize=(10, 6))
@@ -23,8 +23,8 @@ rects2 = ax2.bar(x + width/2, latency1, width, label='Avg. Latency (ms)', color=
 # Set axes labels and limits
 ax1.set_ylabel('Average Accuracy (mAP)', color='skyblue')
 ax2.set_ylabel('Average Latency (ms)', color='lightcoral')
-ax1.set_ylim(40, 50)  # 保持准确率范围不变
-ax2.set_ylim(500, 1100)  # 调整延迟范围
+ax1.set_ylim(35, 50)  # 保持准确率范围不变
+ax2.set_ylim(250, 350)  # 调整延迟范围
 
 # Set x-axis
 ax1.set_xticks(x)
@@ -55,8 +55,8 @@ plt.close()
 
 # Figure 2 data: A2C variants comparison
 methods2 = ['A2C-3act\n(no LSTM)', 'A2C-5act\n(no LSTM)', 'A2C-3act\n(LSTM)', 'A2C-5act\n(LSTM)']
-accuracy2 = [44.8, 45.2, 45.7, 46.1]  # 保持准确率不变
-latency2 = [762.4, 708.9, 685.6, 652.8]  # 调整到更合理的延迟范围
+accuracy2 = [45.8, 45.2, 46.7, 46.1]  # 保持准确率不变
+latency2 = [392.4, 331.9, 384.6, 302.8]  # 调整到更合理的延迟范围
 
 # Create figure 2
 fig2, ax3 = plt.subplots(figsize=(10, 6))
@@ -72,7 +72,7 @@ rects4 = ax4.bar(x + width/2, latency2, width, label='Avg. Latency (ms)', color=
 ax3.set_ylabel('Average Accuracy (mAP)', color='skyblue')
 ax4.set_ylabel('Average Latency (ms)', color='lightcoral')
 ax3.set_ylim(40, 50)  # 保持准确率范围不变
-ax4.set_ylim(500, 1100)  # 调整延迟范围，与图1保持一致
+ax4.set_ylim(250, 400)  # 调整延迟范围，与图1保持一致
 
 # Set x-axis
 ax3.set_xticks(x)

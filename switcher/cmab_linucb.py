@@ -26,6 +26,7 @@ class CMABSwitcher:
         self.feature_dim = 11  # 特征维度
         self.model_levels = ['n', 's', 'm', 'l', 'x']
         self.alpha = 1.0  # UCB exploration parameter
+        self.decay_factor = 0.95  # 衰减因子
         
         # 为每个arm初始化参数
         self.A = {arm: np.eye(self.feature_dim) for arm in self.model_levels}
@@ -36,6 +37,9 @@ class CMABSwitcher:
         self.queue_max_length = config.get_queue_max_length()
         self.queue_high_threshold = config.get_queue_high_threshold_length()
         self.queue_low_threshold = config.get_queue_low_threshold_length()
+
+        # 设置Socket事件处理器
+        self.setup_socket_events()
 
     def normalize_state(self, state):
         """归一化状态特征"""
@@ -56,7 +60,6 @@ class CMABSwitcher:
 
     def compute_reward(self, stats):
         """计算即时奖励"""
-        # TODO：改成推理延迟貌似更合理
         queue_ratio = stats['queue_length'] / self.queue_high_threshold
         w1 = max(1 - queue_ratio, 0)  # 准确率权重
         w2 = queue_ratio  # 延迟权重
@@ -92,12 +95,15 @@ class CMABSwitcher:
         return best_model
 
     def update_model(self, arm, features, reward):
-        """更新模型参数"""
-        self.A[arm] += features @ features.T
-        self.b[arm] += reward * features
+        """更新模型参数，加入衰减机制"""
+        # 应用衰减
+        self.A[arm] = self.decay_factor * self.A[arm] + features @ features.T
+        self.b[arm] = self.decay_factor * self.b[arm] + reward * features
         self.theta[arm] = np.linalg.solve(self.A[arm], self.b[arm])
         
-        logger.debug(f"Updated model {arm} parameters: theta={self.theta[arm].flatten()}")
+        logger.debug(f"""Updated model {arm} parameters: 
+            theta={self.theta[arm].flatten()}
+            decay_factor={self.decay_factor}""")
 
     def setup_socket_events(self):
         """设置Socket.IO事件处理器"""

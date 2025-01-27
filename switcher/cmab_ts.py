@@ -27,6 +27,7 @@ class ThompsonSwitcher:
         self.feature_dim = 11  # 特征维度
         self.model_levels = ['n', 's', 'm', 'l', 'x']
         self.v = 1.0  # 先验方差
+        self.noise_scale = 0.1  # 额外探索噪声的大小
         
         # 为每个arm初始化参数
         self.B = {arm: np.eye(self.feature_dim) for arm in self.model_levels}  # 精度矩阵
@@ -38,6 +39,9 @@ class ThompsonSwitcher:
         self.queue_max_length = config.get_queue_max_length()
         self.queue_high_threshold = config.get_queue_high_threshold_length()
         self.queue_low_threshold = config.get_queue_low_threshold_length()
+
+        # 设置Socket事件处理器
+        self.setup_socket_events()
 
     def normalize_state(self, state):
         """归一化状态特征"""
@@ -58,7 +62,6 @@ class ThompsonSwitcher:
 
     def compute_reward(self, stats):
         """计算即时奖励"""
-        # TODO：改成推理延迟貌似更合理
         queue_ratio = stats['queue_length'] / self.queue_high_threshold
         w1 = max(1 - queue_ratio, 0)  # 准确率权重
         w2 = queue_ratio  # 延迟权重
@@ -77,7 +80,7 @@ class ThompsonSwitcher:
         return reward
 
     def sample_theta(self, arm):
-        """从后验分布中采样参数"""
+        """从后验分布中采样参数，添加额外噪声以增加探索"""
         try:
             # 计算后验协方差
             cov = np.linalg.inv(self.B[arm])
@@ -86,11 +89,18 @@ class ThompsonSwitcher:
                 mean=self.mu[arm].flatten(),
                 cov=cov
             ).reshape(-1, 1)
+            
+            # 添加额外探索噪声
+            noise = np.random.normal(0, self.noise_scale, size=(self.feature_dim, 1))
+            theta_sample = theta_sample + noise
+            
+            logger.debug(f"Sampled theta for arm {arm} with noise, shape: {theta_sample.shape}")
             return theta_sample
+            
         except np.linalg.LinAlgError:
-            # 如果矩阵不可逆，返回当前均值
-            logger.warning(f"Sampling failed for arm {arm}, using mean")
-            return self.mu[arm]
+            logger.warning(f"Sampling failed for arm {arm}, using mean with noise")
+            noise = np.random.normal(0, self.noise_scale, size=(self.feature_dim, 1))
+            return self.mu[arm] + noise
 
     def select_model(self, features):
         """使用Thompson Sampling选择最佳模型"""
