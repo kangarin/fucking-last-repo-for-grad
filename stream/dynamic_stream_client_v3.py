@@ -67,48 +67,25 @@ class DynamicStreamClient:
         return sorted(video_files)
 
     def generate_biased_fps_range(self):
-        """使用线性概率分布生成FPS范围"""
+        """使用加权的方式生成FPS范围"""
         min_fps = self.fps_config['min_fps']
         max_fps = self.fps_config['max_fps']
         k = self.fps_bias_k
         
-        # 计算截距b（归一化）
-        b = 2/(max_fps - min_fps) + k*(max_fps + min_fps)/2
+        # 将范围分成N个区间
+        N = 10
+        intervals = np.linspace(min_fps, max_fps, N)
         
-        # 反变换采样
-        def inverse_cdf(u):
-            # 解二次方程：-kx²/2 + bx - c = u，其中c是积分常数
-            # 返回符合范围的根
-            c = -k*min_fps**2/2 + b*min_fps
-            a = -k/2
-            b_quad = b
-            c_quad = -(u + c)
-            
-            # 求根公式
-            x1 = (-b_quad + math.sqrt(b_quad**2 - 4*a*c_quad))/(2*a)
-            x2 = (-b_quad - math.sqrt(b_quad**2 - 4*a*c_quad))/(2*a)
-            
-            # 返回在范围内的根
-            if min_fps <= x1 <= max_fps:
-                return x1
-            return x2
+        # 生成递减的权重
+        weights = np.array([(N-i)**k for i in range(N-1)])
+        weights = weights / np.sum(weights)  # 归一化
         
-        # 生成两个FPS值
-        u1 = random.random()
-        u2 = random.random()
-        fps1 = inverse_cdf(u1)
-        fps2 = inverse_cdf(u2)
+        # 从区间中选择两个不同的值
+        selected_intervals = np.random.choice(range(N-1), size=2, replace=False, p=weights)
         
-        # 确保最小差异（保持10%要求）
-        config_fps_range = max_fps - min_fps
-        min_difference = config_fps_range * 0.1
-        
-        if abs(fps1 - fps2) < min_difference:
-            # 如果差异太小，增加差异
-            center = (fps1 + fps2) / 2
-            half_diff = min_difference / 2
-            fps1 = max(min_fps, min(max_fps, center - half_diff))
-            fps2 = max(min_fps, min(max_fps, center + half_diff))
+        # 在选中的区间内均匀采样
+        fps1 = random.uniform(intervals[selected_intervals[0]], intervals[selected_intervals[0]+1])
+        fps2 = random.uniform(intervals[selected_intervals[1]], intervals[selected_intervals[1]+1])
         
         return {
             'min_fps': min(fps1, fps2),
