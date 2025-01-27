@@ -178,7 +178,7 @@ class A2CAgent:
         ).to(self.device)
         
         # 训练参数
-        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-4)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=1e-5)
         self.gamma = 0.95
         self.steps = 0
         
@@ -356,11 +356,38 @@ class A2CAgent:
         # 更新epsilon
         self.epsilon = max(self.eps_end, self.eps_start * (self.eps_decay ** self.steps))
         
+        # 新增逻辑：如果队列超过阈值，强行以一定概率采用最低配置
+        switch_prob = 0.0
+        if current_stats['queue_length'] > self.queue_high_threshold_length:
+            switch_prob = (current_stats['queue_length'] - self.queue_high_threshold_length) / (self.queue_max_length - self.queue_high_threshold_length)
+
+        if random.random() < switch_prob:
+            # 强制降档到最小模型
+            if self.action_mode == 'three':
+                action_idx = 2  # 对应动作-1（降一档）
+            else:
+                action_idx = 4  # 对应动作-2（降两档）
+
+            # 创建动作张量
+            action = torch.tensor([[action_idx]], device=self.device)
+
+            # 获取网络输出的概率分布（用于计算log_prob）
+            with torch.no_grad():
+                action_probs, current_value = self.network(current_state)
+
+            # 计算对数概率（保持梯度计算一致性）
+            log_prob = torch.log(action_probs[0, action_idx] + 1e-10)
+
+            logger.info(f"强制降档 | 队列: {current_stats['queue_length']} | "
+                      f"阈值: {self.queue_high_threshold_length} | "
+                      f"概率: {switch_prob:.2f}")
+            
         # Epsilon-greedy策略
-        if random.random() < self.epsilon:
+        elif random.random() < self.epsilon:
             # 探索：随机选择动作
             action = torch.tensor([[random.randint(0, self.num_actions-1)]], device=self.device)
-            action_probs, current_value = self.network(current_state)
+            with torch.no_grad():
+                action_probs, current_value = self.network(current_state)
             log_prob = torch.log(action_probs[0, action[0]] + 1e-10)
             logger.info(f"Exploring with epsilon = {self.epsilon:.3f}")
         else:
