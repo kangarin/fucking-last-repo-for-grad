@@ -148,7 +148,7 @@ class ActorCritic(nn.Module):
         return action_probs, state_value
 
 class A2CAgent:
-    def __init__(self, state_buffer, observation_duration=10.0, decision_duration=10.0, action_mode='three'):
+    def __init__(self, state_buffer, observation_duration=5.0, decision_duration=5.0, action_mode='three'):
         self.state_buffer = state_buffer
         self.observation_duration = observation_duration
         self.decision_duration = decision_duration
@@ -461,7 +461,25 @@ class A2CAgent:
             # 计算策略损失和价值损失
             policy_loss = -self.last_action_info['log_prob'] * td_error.detach()
             value_loss = 0.5 * td_error.pow(2)
-            loss = policy_loss + value_loss
+            # loss = policy_loss + value_loss
+
+            # 改进：使用动态的scale，平衡两个损失
+            with torch.no_grad():
+                value_scale = 1.0 / (value_loss.abs().mean() + 1e-8)
+                policy_scale = 1.0 / (policy_loss.abs().mean() + 1e-8)
+            
+            # 应用scale
+            scaled_value_loss = value_loss * value_scale
+            scaled_policy_loss = policy_loss * policy_scale
+            
+            loss = scaled_policy_loss + scaled_value_loss
+
+            logger.info(f"""
+            Policy Loss: {policy_loss.item():.3f}
+            Value Loss: {value_loss.item():.3f}
+            Scaled Policy Loss: {scaled_policy_loss.item():.3f}
+            Scaled Value Loss: {scaled_value_loss.item():.3f}
+            """)
             
             # 进行反向传播
             self.optimizer.zero_grad()
