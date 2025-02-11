@@ -1,0 +1,81 @@
+<svg viewBox="0 0 1000 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景 -->
+    <rect width="1000" height="400" fill="#ffffff"/>
+    
+    <!-- 系统标题 -->
+    <text x="500" y="40" text-anchor="middle" font-size="24" font-weight="bold" fill="#2c3e50">边缘视频流分析系统</text>
+
+    <!-- 主要数据流向 -->
+    <g stroke="#34495e" stroke-width="2" fill="none" marker-end="url(#arrowhead)">
+        <!-- 场景到输入 -->
+        <path d="M180 150 H220"/>
+        <!-- 输入到预处理 -->
+        <path d="M320 150 H360"/>
+        <!-- 预处理到队列 -->
+        <path d="M460 150 H500"/>
+        <!-- 队列到模型自适应 -->
+        <path d="M600 150 H640"/>
+        <!-- 模型到输出 -->
+        <path d="M840 150 H880"/>
+    </g>
+
+    <!-- 典型场景输入 -->
+    <g transform="translate(20,90)">
+        <rect width="160" height="120" fill="#f8f9fa" stroke="#3498db" rx="5"/>
+        <text x="80" y="30" text-anchor="middle" fill="#2c3e50" font-size="14">典型输入场景</text>
+        <text x="80" y="60" text-anchor="middle" fill="#2c3e50" font-size="12">交通流量分析</text>
+        <text x="80" y="85" text-anchor="middle" fill="#2c3e50" font-size="12">商场客流统计</text>
+        <text x="80" y="110" text-anchor="middle" fill="#2c3e50" font-size="12">工业质量检测</text>
+    </g>
+
+    <!-- 视频输入处理 -->
+    <g transform="translate(220,120)">
+        <rect width="100" height="60" fill="#3498db" rx="5"/>
+        <text x="50" y="35" text-anchor="middle" fill="white">视频输入</text>
+    </g>
+
+    <!-- 预处理部分 -->
+    <g transform="translate(360,120)">
+        <rect width="100" height="60" fill="#3498db" rx="5"/>
+        <text x="50" y="35" text-anchor="middle" fill="white">智能帧过滤</text>
+    </g>
+
+    <!-- 队列管理 -->
+    <g transform="translate(500,120)">
+        <rect width="100" height="60" fill="#3498db" rx="5"/>
+        <text x="50" y="30" text-anchor="middle" fill="white">检测</text>
+        <text x="50" y="45" text-anchor="middle" fill="white">缓存队列</text>
+    </g>
+
+    <!-- 模型自适应模块（重点突出） -->
+    <g transform="translate(640,80)">
+        <rect width="200" height="140" fill="#f8f9fa" stroke="#e74c3c" stroke-width="3" rx="10"/>
+        <text x="100" y="30" text-anchor="middle" font-size="16" fill="#e74c3c" font-weight="bold">模型自适应选择</text>
+        
+        <!-- 状态监控 -->
+        <g transform="translate(20,45)">
+            <rect width="160" height="35" fill="#e74c3c" rx="5"/>
+            <text x="80" y="23" text-anchor="middle" fill="white">状态监控与特征提取</text>
+        </g>
+        
+        <!-- 模型池 -->
+        <g transform="translate(20,90)">
+            <rect width="160" height="35" fill="#e74c3c" rx="5"/>
+            <text x="80" y="23" text-anchor="middle" fill="white">模型池</text>
+        </g>
+    </g>
+
+    <!-- 输出部分 -->
+    <g transform="translate(880,120)">
+        <rect width="100" height="60" fill="#3498db" rx="5"/>
+        <text x="50" y="35" text-anchor="middle" fill="white">分析结果</text>
+    </g>
+
+    <!-- 箭头定义 -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34495e"/>
+        </marker>
+    </defs>
+</svg>
