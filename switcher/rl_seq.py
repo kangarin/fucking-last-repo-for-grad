@@ -321,8 +321,8 @@ class A2CAgent:
             w1 = max(1 - queue_ratio, 0)  # 准确率权重
             w2 = queue_ratio  # 延迟权重
 
-            reward = 2 * w1 * (avg_metrics['accuracy']/100.0 + avg_metrics['avg_confidence']) - \
-                    2 * w2 * (avg_metrics['processing_latency'])
+            reward = w1 * (avg_metrics['accuracy']/100.0 + avg_metrics['avg_confidence']) - \
+                    w2 * (avg_metrics['processing_latency'])
 
             logger.info(f"""Reward breakdown:
                 Queue Length: {avg_metrics['queue_length']:.1f} (Ratio: {queue_ratio:.2f})

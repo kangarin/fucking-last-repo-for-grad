@@ -66,8 +66,8 @@ class ThompsonSwitcher:
         w1 = max(1 - queue_ratio, 0)  # 准确率权重
         w2 = queue_ratio  # 延迟权重
         
-        reward = 2 * w1 * (stats['accuracy']/100.0 + stats['avg_confidence']) - \
-                2 * w2 * (stats['processing_latency'])
+        reward = w1 * (stats['accuracy']/100.0 + stats['avg_confidence']) - \
+                w2 * (stats['processing_latency'])
                 
         logger.info(f"""Reward calculation:
             Queue Length: {stats['queue_length']:.1f} (Ratio: {queue_ratio:.2f})
