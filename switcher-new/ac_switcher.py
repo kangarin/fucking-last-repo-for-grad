@@ -143,7 +143,7 @@ class LSTMActorCriticModelSwitcher:
         # 探索增强参数
         self.exploration_rate = 0.2  # 初始探索率
         self.min_exploration_rate = 0.05  # 最小探索率
-        self.exploration_decay = 0.995  # 探索率衰减因子
+        self.exploration_decay = 0.999  # 探索率衰减因子
         
         # 设置强制探索计数器
         self.force_exploration_count = 10  # 每10次决策强制探索一次
@@ -297,22 +297,24 @@ class LSTMActorCriticModelSwitcher:
                 float(stats['contrast']) / 255.0,  # 对比度归一化到0-1
                 float(stats['entropy']) / 10.0,  # 熵通常在0-10之间
                 float(stats['cur_model_accuracy']) / 100.0,  # 准确率归一化到0-1
-                float(self.model_to_idx.get(stats['cur_model_index'], 0)) / (len(self.available_models) - 1)  # 模型索引归一化到0-1
+                float(self.model_to_idx.get(stats['cur_model_index'], 0))
             ]
             features.append(feature)
             
         # 将特征转换为numpy数组
         features = np.array(features, dtype=np.float32)
         
-        # 如果是第一次运行，初始化特征归一化参数
-        if self.feature_means is None or self.feature_stds is None:
-            self.feature_means = np.mean(features, axis=0)
-            self.feature_stds = np.std(features, axis=0)
-            # 防止除零错误，将标准差为0的特征设为1.0
-            self.feature_stds[self.feature_stds == 0] = 1.0
+        # # 如果是第一次运行，初始化特征归一化参数
+        # if self.feature_means is None or self.feature_stds is None:
+        #     self.feature_means = np.mean(features, axis=0)
+        #     self.feature_stds = np.std(features, axis=0)
+        #     # 防止除零错误，将标准差为0的特征设为1.0
+        #     self.feature_stds[self.feature_stds == 0] = 1.0
             
-        # 特征归一化
-        normalized_features = (features - self.feature_means) / self.feature_stds
+        # # 特征归一化
+        # normalized_features = (features - self.feature_means) / self.feature_stds
+
+        normalized_features = features
         
         # 确保形状正确 (batch_size, sequence_length, features)
         if len(normalized_features.shape) == 2:
@@ -411,6 +413,7 @@ class LSTMActorCriticModelSwitcher:
         
         # 更新critic
         critic_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.network.parameters(), 0.5)
         self.critic_optimizer.step()
         
         # 更新Actor网络
@@ -434,6 +437,7 @@ class LSTMActorCriticModelSwitcher:
         
         # 更新actor
         actor_loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.network.parameters(), 0.5)
         self.actor_optimizer.step()
         
         # 重置LSTM隐藏状态，准备下一次预测
@@ -580,7 +584,7 @@ class LSTMActorCriticModelSwitcher:
                         print(f"Initial model detected: yolov5{self.current_model}")
                         
                     # 检查队列紧急情况
-                    if current_stats['queue_length'] >= self.queue_max_length:
+                    if current_stats['queue_length'] >= self.queue_high_threshold_length:
                         emergency_mode = True
                         selected_model = self.handle_emergency()
                         
