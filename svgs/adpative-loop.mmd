@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph ams["自适应模型选择"]
+        direction LR
+        mp["模型池\nYOLOv5\nEfficientDet\nOFA"] --- aa["自适应算法\n基于规则\n基于CMAB\n深度强化学习"]
+    end
+    
+    itq[输入任务队列] --> inf[推理模块]
+    inf --> out[结果输出]
+    
+    inf -- 情境特征 --> sc[状态采集]
+    sc -- 状态信息 --> ams
+    ams -- 模型决策 --> inf
+    
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px
+    classDef queue fill:#e6f7ff,stroke:#0099cc,stroke-width:2px
+    classDef inference fill:#ffe6e6,stroke:#cc3333,stroke-width:2px
+    classDef output fill:#f2e6ff,stroke:#9933cc,stroke-width:2px
+    classDef state fill:#fff2e6,stroke:#cc6633,stroke-width:2px
+    classDef adaptive fill:#f6f6f6,stroke:#666666,stroke-width:2px
+    classDef model fill:#c9e8f2,stroke:#4d90b0,stroke-width:2px
+    classDef algo fill:#ffeac9,stroke:#e69c2e,stroke-width:2px
+    
+    class itq queue
+    class inf inference
+    class out output
+    class sc state
+    class ams adaptive
+    class mp model
+    class aa algo

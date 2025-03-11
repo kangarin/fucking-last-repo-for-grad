@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 550">
+  <!-- 背景 -->
+  <rect width="900" height="550" fill="#f8f9fa" rx="10" ry="10"/>
+  
+  <!-- 视频流部分大框 -->
+  <rect x="50" y="70" width="330" height="300" fill="#e7f5ff" rx="10" ry="10" stroke="#339af0" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="215" y="95" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1971c2">视频流集群</text>
+  
+  <!-- 处理节点部分大框 -->
+  <rect x="520" y="70" width="330" height="300" fill="#ebfbee" rx="10" ry="10" stroke="#40c057" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="685" y="95" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#2b8a3e">处理节点集群</text>
+  
+  <!-- 视频流部分 -->
+  <g transform="translate(70, 120)">
+    <!-- 视频流1 -->
+    <rect width="130" height="60" fill="#4dabf7" rx="8" ry="8" stroke="#339af0" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="white">视频流 1</text>
+  </g>
+  
+  <g transform="translate(70, 200)">
+    <!-- 视频流2 -->
+    <rect width="130" height="60" fill="#4dabf7" rx="8" ry="8" stroke="#339af0" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="white">视频流 2</text>
+  </g>
+  
+  <g transform="translate(70, 280)">
+    <!-- 视频流M -->
+    <rect width="130" height="60" fill="#4dabf7" rx="8" ry="8" stroke="#339af0" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="white">视频流 M</text>
+  </g>
+  
+  <!-- 流量分配矩阵 -->
+  <g transform="translate(220, 120)">
+    <rect width="140" height="220" fill="#fff4e6" rx="8" ry="8" stroke="#fd7e14" stroke-width="2"/>
+    <text x="70" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#e8590c">流量分配矩阵</text>
+    <line x1="20" y1="35" x2="120" y2="35" stroke="#e8590c" stroke-width="1"/>
+    
+    <!-- 矩阵内容 -->
+    <g transform="translate(20, 45)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#fd7e14" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">流1→节点1: 40%</text>
+    </g>
+    
+    <g transform="translate(20, 75)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#fd7e14" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">流1→节点2: 60%</text>
+    </g>
+    
+    <g transform="translate(20, 115)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#fd7e14" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">流2→节点1: 70%</text>
+    </g>
+    
+    <g transform="translate(20, 145)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#fd7e14" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">流2→节点2: 30%</text>
+    </g>
+    
+    <g transform="translate(20, 185)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#fd7e14" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">...</text>
+    </g>
+  </g>
+  
+  <!-- 处理节点部分 -->
+  <g transform="translate(700, 120)">
+    <!-- 节点1 -->
+    <rect width="130" height="60" fill="#69db7c" rx="8" ry="8" stroke="#40c057" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#212529">处理节点 1</text>
+  </g>
+  
+  <g transform="translate(700, 200)">
+    <!-- 节点2 -->
+    <rect width="130" height="60" fill="#69db7c" rx="8" ry="8" stroke="#40c057" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#212529">处理节点 2</text>
+  </g>
+  
+  <g transform="translate(700, 280)">
+    <!-- 节点N -->
+    <rect width="130" height="60" fill="#69db7c" rx="8" ry="8" stroke="#40c057" stroke-width="2"/>
+    <text x="65" y="35" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#212529">处理节点 N</text>
+  </g>
+  
+  <!-- 处理节点配置 -->
+  <g transform="translate(540, 120)">
+    <rect width="140" height="220" fill="#e3fafc" rx="8" ry="8" stroke="#15aabf" stroke-width="2"/>
+    <text x="70" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#0b7285">节点配置参数</text>
+    <line x1="20" y1="35" x2="120" y2="35" stroke="#0b7285" stroke-width="1"/>
+    
+    <!-- 配置内容 -->
+    <g transform="translate(20, 45)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#15aabf" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">节点1: 速度5.0</text>
+    </g>
+    
+    <g transform="translate(20, 75)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#15aabf" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">节点1: 质量0.8</text>
+    </g>
+    
+    <g transform="translate(20, 115)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#15aabf" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">节点2: 速度4.0</text>
+    </g>
+    
+    <g transform="translate(20, 145)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#15aabf" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">节点2: 质量1.0</text>
+    </g>
+    
+    <g transform="translate(20, 185)">
+      <rect width="100" height="25" fill="white" rx="5" ry="5" stroke="#15aabf" stroke-width="1"/>
+      <text x="50" y="17" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">...</text>
+    </g>
+  </g>
+  
+  <!-- 任务网络传输箭头 -->
+  <path d="M 380,220 C 430,220 470,220 520,220" fill="none" stroke="#495057" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="450" y="208" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#495057">任务传输</text>
+  
+  <!-- 联合优化策略模块 -->
+  <g transform="translate(200, 420)">
+    <rect width="500" height="90" fill="#ff8787" rx="8" ry="8" stroke="#fa5252" stroke-width="2"/>
+    <text x="250" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">流量分配和模型选择联合优化策略</text>
+    <line x1="100" y1="50" x2="400" y2="50" stroke="white" stroke-width="1"/>
+    <text x="250" y="75" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">基于系统状态、网络带宽和节点负载的动态优化</text>
+  </g>
+  
+  <!-- 策略到流量分配的箭头 -->
+  <path d="M 280,420 C 280,395 275,385 275,370" fill="none" stroke="#fa5252" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)" stroke-dasharray="5,3"/>
+  <text x="230" y="395" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#fa5252">流量分配决策</text>
+  
+  <!-- 策略到节点配置的箭头 -->
+  <path d="M 620,420 C 620,395 615,385 615,370" fill="none" stroke="#fa5252" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)" stroke-dasharray="5,3"/>
+  <text x="665" y="395" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#fa5252">模型配置决策</text>
+  
+  <!-- 系统状态监控到策略的箭头 -->
+  <path d="M 360,370 C 385,395 410,410 430,420" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="350" y="400" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">视频流状态</text>
+  
+  <path d="M 540,370 C 515,395 490,410 470,420" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="550" y="400" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">节点状态</text>
+  
+  <!-- 箭头定义 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#495057"/>
+    </marker>
+  </defs>
+</svg>

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%">
+  <!-- 样式定义 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+    <linearGradient id="modelPoolGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c9e8f2"/>
+      <stop offset="100%" stop-color="#80c4de"/>
+    </linearGradient>
+    <linearGradient id="adaptiveAlgoGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffeac9"/>
+      <stop offset="100%" stop-color="#ffcc80"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="800" height="400" fill="white" rx="10" ry="10"/>
+  
+  <!-- 状态采集 -->
+  <rect x="150" y="60" width="140" height="60" rx="5" ry="5" fill="#fff2e6" stroke="#cc6633" stroke-width="2"/>
+  <text x="220" y="95" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold">状态采集</text>
+  
+  <!-- 自适应模型选择模块框架 -->
+  <rect x="400" y="40" width="300" height="150" rx="5" ry="5" fill="#f6f6f6" stroke="#666666" stroke-width="2"/>
+  <text x="550" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold">自适应模型选择</text>
+  
+  <!-- 模型池 -->
+  <rect x="420" y="80" width="120" height="100" rx="5" ry="5" fill="url(#modelPoolGradient)" stroke="#4d90b0" stroke-width="2"/>
+  <text x="480" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold">模型池</text>
+  <text x="480" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">YOLOv5</text>
+  <text x="480" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">EfficientDet</text>
+  <text x="480" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">OFA</text>
+  
+  <!-- 自适应算法 -->
+  <rect x="560" y="80" width="120" height="100" rx="5" ry="5" fill="url(#adaptiveAlgoGradient)" stroke="#e69c2e" stroke-width="2"/>
+  <text x="620" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold">自适应算法</text>
+  <text x="620" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">基于规则</text>
+  <text x="620" y="150" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">基于CMAB</text>
+  <text x="620" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">深度强化学习</text>
+  
+  <!-- 主要流程模块 -->
+  <!-- 输入任务队列 -->
+  <rect x="100" y="250" width="140" height="60" rx="5" ry="5" fill="#e6f7ff" stroke="#0099cc" stroke-width="2"/>
+  <text x="170" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold">输入任务队列</text>
+  
+  <!-- 推理模块 -->
+  <rect x="330" y="250" width="140" height="60" rx="5" ry="5" fill="#ffe6e6" stroke="#cc3333" stroke-width="2"/>
+  <text x="400" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold">推理模块</text>
+  
+  <!-- 结果输出 -->
+  <rect x="560" y="250" width="140" height="60" rx="5" ry="5" fill="#f2e6ff" stroke="#9933cc" stroke-width="2"/>
+  <text x="630" y="285" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold">结果输出</text>
+  
+  <!-- 连接线 -->
+  <!-- 输入任务队列 -> 推理模块 -->
+  <line x1="240" y1="280" x2="330" y2="280" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- 推理模块 -> 结果输出 -->
+  <line x1="470" y1="280" x2="560" y2="280" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- 推理模块 -> 状态采集 -->
+  <line x1="350" y1="250" x2="350" y2="200" stroke="#333" stroke-width="2"/>
+  <line x1="350" y1="200" x2="220" y2="200" stroke="#333" stroke-width="2"/>
+  <line x1="220" y1="200" x2="220" y2="120" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="310" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">情境特征</text>
+  
+  <!-- 状态采集 -> 自适应模型选择 -->
+  <line x1="290" y1="90" x2="400" y2="90" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="345" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">状态信息</text>
+  
+  <!-- 自适应模型选择 -> 推理模块 -->
+  <line x1="550" y1="190" x2="550" y2="220" stroke="#333" stroke-width="2"/>
+  <line x1="550" y1="220" x2="450" y2="220" stroke="#333" stroke-width="2"/>
+  <line x1="450" y1="220" x2="450" y2="250" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="475" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="12">模型决策</text>
+</svg>

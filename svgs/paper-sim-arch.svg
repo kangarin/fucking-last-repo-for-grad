@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 550">
+  <!-- 背景 -->
+  <rect width="900" height="550" fill="#f8f9fa" rx="10" ry="10"/>
+  
+  <!-- 环境模块 -->
+  <rect x="70" y="50" width="760" height="340" fill="#e9ecef" rx="10" ry="10" stroke="#ced4da" stroke-width="2"/>
+  
+  <!-- 视频流生成模块 -->
+  <g transform="translate(100, 80)">
+    <rect width="200" height="280" fill="#4dabf7" rx="8" ry="8" stroke="#339af0" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">视频流生成</text>
+    <line x1="40" y1="45" x2="160" y2="45" stroke="white" stroke-width="1"/>
+    
+    <!-- 流1 -->
+    <g transform="translate(25, 65)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#339af0" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">动态数据流 1</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">可变生成率</text>
+    </g>
+    
+    <!-- 流2 -->
+    <g transform="translate(25, 150)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#339af0" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">动态数据流 2</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">可变生成率</text>
+    </g>
+    
+    <!-- 流N -->
+    <g transform="translate(25, 235)">
+      <rect width="150" height="30" fill="white" rx="5" ry="5" stroke="#339af0" stroke-width="1"/>
+      <text x="75" y="20" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">更多视频流...</text>
+    </g>
+  </g>
+  
+  <!-- 网络传输模块 -->
+  <g transform="translate(350, 80)">
+    <rect width="200" height="280" fill="#ffd43b" rx="8" ry="8" stroke="#fab005" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#212529">网络传输层</text>
+    <line x1="40" y1="45" x2="160" y2="45" stroke="#212529" stroke-width="1"/>
+    
+    <g transform="translate(25, 65)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#fab005" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">带宽管理</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">动态带宽矩阵</text>
+    </g>
+    
+    <g transform="translate(25, 150)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#fab005" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">传输队列</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">任务传输时延计算</text>
+    </g>
+    
+    <g transform="translate(25, 235)">
+      <rect width="150" height="30" fill="white" rx="5" ry="5" stroke="#fab005" stroke-width="1"/>
+      <text x="75" y="20" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">网络状态监控</text>
+    </g>
+  </g>
+  
+  <!-- 处理节点模块 -->
+  <g transform="translate(600, 80)">
+    <rect width="200" height="280" fill="#69db7c" rx="8" ry="8" stroke="#40c057" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#212529">处理节点集群</text>
+    <line x1="40" y1="45" x2="160" y2="45" stroke="#212529" stroke-width="1"/>
+    
+    <!-- 节点1 -->
+    <g transform="translate(25, 65)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#40c057" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">可调节节点 1</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">速度-质量对</text>
+    </g>
+    
+    <!-- 节点2 -->
+    <g transform="translate(25, 150)">
+      <rect width="150" height="70" fill="white" rx="5" ry="5" stroke="#40c057" stroke-width="1"/>
+      <text x="75" y="30" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">可调节节点 2</text>
+      <text x="75" y="55" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">速度-质量对</text>
+    </g>
+    
+    <!-- 节点N -->
+    <g transform="translate(25, 235)">
+      <rect width="150" height="30" fill="white" rx="5" ry="5" stroke="#40c057" stroke-width="1"/>
+      <text x="75" y="20" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">更多处理节点...</text>
+    </g>
+  </g>
+  
+  <!-- 箭头：流到网络 -->
+  <path d="M 300,220 C 320,220 330,220 350,220" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="325" y="210" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">任务</text>
+  
+  <!-- 箭头：网络到节点 -->
+  <path d="M 550,220 C 570,220 580,220 600,220" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="575" y="210" font-family="Arial, sans-serif" font-size="11" text-anchor="middle" fill="#495057">任务</text>
+  
+  <!-- 优化器模块 -->
+  <g transform="translate(230, 420)">
+    <rect width="400" height="100" fill="#ff8787" rx="8" ry="8" stroke="#fa5252" stroke-width="2"/>
+    <text x="200" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">两阶段优化器</text>
+    <line x1="50" y1="50" x2="350" y2="50" stroke="white" stroke-width="1"/>
+    
+    <g transform="translate(30, 60)">
+      <rect width="150" height="30" fill="white" rx="5" ry="5" stroke="#fa5252" stroke-width="1"/>
+      <text x="75" y="20" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">阶段1: 流量分配优化</text>
+    </g>
+    
+    <g transform="translate(220, 60)">
+      <rect width="150" height="30" fill="white" rx="5" ry="5" stroke="#fa5252" stroke-width="1"/>
+      <text x="75" y="20" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#495057">阶段2: 模型配置优化</text>
+    </g>
+  </g>
+  
+  <!-- 观测与性能指标模块 -->
+  <g transform="translate(680, 420)">
+    <rect width="150" height="100" fill="#748ffc" rx="8" ry="8" stroke="#4c6ef5" stroke-width="2"/>
+    <text x="75" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="white">性能指标</text>
+    <line x1="30" y1="50" x2="120" y2="50" stroke="white" stroke-width="1"/>
+    <text x="75" y="70" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">处理延迟</text>
+    <text x="75" y="90" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white">处理质量</text>
+  </g>
+  
+  <!-- 观测箭头 - 曲线优化 -->
+  <path d="M 450,390 C 450,405 450,410 450,420" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="420" y="405" font-family="Arial, sans-serif" font-size="11" text-anchor="end" fill="#495057">系统状态</text>
+  
+  <!-- 优化器到环境的动作箭头 - 曲线优化 -->
+  <path d="M 430,420 C 430,405 430,400 430,390" fill="none" stroke="#fa5252" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)" stroke-dasharray="5,3"/>
+  <text x="465" y="405" font-family="Arial, sans-serif" font-size="11" fill="#fa5252">调度动作</text>
+  
+  <!-- 环境到性能指标的箭头 - 曲线优化 -->
+  <path d="M 750,390 C 750,405 750,410 750,420" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+  <text x="780" y="405" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#495057">性能数据</text>
+  
+  <!-- 箭头定义 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#495057"/>
+    </marker>
+  </defs>
+</svg>
