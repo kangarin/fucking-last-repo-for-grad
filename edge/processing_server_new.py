@@ -44,7 +44,7 @@ class StatsEntry:
     # The queue length at the time of the inference
     queue_length: int = 0
     # The model index of the inference
-    cur_model_index: str = ""  # Changed to string to match the existing code
+    cur_model_index: str = "s"  # Changed to string to match the existing code
     # The accuracy of the model
     cur_model_accuracy: float = 0.0
     # The processing latency of the inference
@@ -65,6 +65,7 @@ class StatsEntry:
     contrast: float = 0.0
     # The entropy of the image (from original code)
     entropy: float = 0.0
+
 
     def __str__(self) -> str:
         return (
@@ -124,6 +125,43 @@ class StatsManager:
                 return [StatsEntry()] * (nums - len(self.stats)) + list(self.stats)
             else:
                 return list(self.stats)[-nums:]  # 返回最新的nums个元素
+            
+    def get_interval_stats(self, nums: int = 1, interval: float = 1.0):
+        '''
+        Get the statistics at intervals
+        Returns a list of stats, one for each interval, starting from the oldest to newest
+        If no stats are available for an interval, None is used as placeholder
+        '''
+        with self.lock:
+            if not self.stats:
+                return [None] * nums
+                
+            result = [None] * nums
+            current_time = self.stats[-1].timestamp
+            
+            # 使用二分查找优化查找过程
+            stats_list = list(self.stats)  # 转换为列表以支持索引访问
+            
+            for i in range(nums):
+                target_time = current_time - i * interval
+                
+                # 二分查找找到最接近且不大于目标时间的统计数据
+                left, right = 0, len(stats_list) - 1
+                closest_index = -1
+                
+                while left <= right:
+                    mid = (left + right) // 2
+                    if stats_list[mid].timestamp <= target_time:
+                        closest_index = mid
+                        left = mid + 1
+                    else:
+                        right = mid - 1
+                
+                if closest_index != -1:
+                    result[nums - 1 - i] = stats_list[closest_index]  # 确保按时间从老到新排序
+                    
+            return result
+            
 
 class ModelManager:
     def __init__(self):
@@ -436,7 +474,7 @@ def handle_switch_model(data):
             
         success = processor.model_manager.switch_model(model_name)
         if success:
-            emit('model_switched', {'model_name': f'yolov5{model_name}'})
+            emit('model_switched', {'model_name': f'{model_name}'})
         else:
             emit('error', {'message': 'Failed to switch model'})
             
@@ -465,7 +503,25 @@ def get_stats():
     stats_dicts = [s.__dict__ for s in stats]
     return jsonify(stats_dicts)
 
+
+@app.route('/get_interval_stats', methods=['GET'])
+def get_interval_stats():
+    """获取当前系统状态统计信息，按照时间窗口的方式，从最后一个状态开始，每隔interval秒取一个状态"""
+    nums = request.args.get('nums', default=1, type=int)
+    interval = request.args.get('interval', default=1.0, type=float)
+
+    nums = max(1, nums)
+    interval = max(0.1, interval)
+
+    # Get the interval stats
+    stats = processor.model_manager.stats_manager.get_interval_stats(nums, interval)
+    if stats is None:
+        return jsonify([])
     
+    # Convert StatsEntry objects to dictionaries
+    stats_dicts = [s.__dict__ for s in stats]
+    return jsonify(stats_dicts)
+
 if __name__ == '__main__':
     try:
         server_config = config.get_edge_processing_config()
