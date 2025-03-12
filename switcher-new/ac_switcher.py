@@ -93,6 +93,8 @@ class LSTMActorCritic(nn.Module):
         
         # 前向传播获取动作概率和状态价值
         action_probs, state_value = self(state)
+
+        print(f"Action probs: {action_probs}")
         
         # 应用探索 - 有时选择随机动作
         if np.random.random() < exploration_rate:
@@ -173,7 +175,7 @@ class LSTMActorCriticModelSwitcher:
         
         # Actor-Critic超参数
         self.gamma = 0.99  # 折扣因子
-        self.entropy_beta = 0.01  # 熵正则化系数
+        self.entropy_beta = 0.1  # 熵正则化系数
         self.critic_loss_coef = 0.5  # 价值函数损失系数
         
         # 统计信息
@@ -421,15 +423,28 @@ class LSTMActorCriticModelSwitcher:
         
         # 计算优势函数，使用当前网络的值
         advantages = (target_values - values).detach()
+
+        print(f"Advantages stats: mean={advantages.mean().item():.6f}, std={advantages.std().item():.6f}, min={advantages.min().item():.6f}, max={advantages.max().item():.6f}")
         
         # 创建一个分类分布
         dist = Categorical(action_probs)
         
         # 计算所选动作的对数概率
         action_log_probs = dist.log_prob(actions)
+
+        # 在更新前检查log_probs和advantages中是否有NaN或Inf
+        if torch.isnan(action_log_probs).any() or torch.isinf(action_log_probs).any():
+            print("Warning: NaN or Inf detected in log_probs")
+            
+        if torch.isnan(advantages).any() or torch.isinf(advantages).any():
+            print("Warning: NaN or Inf detected in advantages")
         
         # 计算actor损失
         actor_loss = -(action_log_probs * advantages.squeeze()).mean()
+
+        # 添加熵正则化
+        entropy_loss = dist.entropy().mean()
+        actor_loss -= self.entropy_beta * entropy_loss
         
         # 更新actor
         actor_loss.backward()
