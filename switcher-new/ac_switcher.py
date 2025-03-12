@@ -152,7 +152,7 @@ class LSTMActorCriticModelSwitcher:
         self.feature_stds = None
         
         # 经验回放设置
-        self.replay_buffer = deque(maxlen=1000)  # 缓冲区容量
+        self.replay_buffer = deque(maxlen=100)  # 缓冲区容量
         self.min_samples_before_update = 8  # 开始训练前的最小样本数
         self.batch_size = 8  # 批处理大小
         self.update_frequency = 1  # 每4个决策周期进行一次网络更新
@@ -169,13 +169,14 @@ class LSTMActorCriticModelSwitcher:
         
         # 使用分离的优化器
         self.actor_optimizer = optim.Adam([p for n, p in self.network.named_parameters() 
-                                          if 'actor' in n or 'actor_lstm' in n], lr=0.001)
+                                          if 'actor' in n or 'actor_lstm' in n], lr=0.005)
         self.critic_optimizer = optim.Adam([p for n, p in self.network.named_parameters() 
                                            if 'critic' in n or 'critic_lstm' in n], lr=0.001)
         
         # Actor-Critic超参数
-        self.gamma = 0.99  # 折扣因子
+        self.gamma = 0.5  # 折扣因子
         self.entropy_beta = 0.1  # 熵正则化系数
+        self.kl_beta = 0.1  # KL散度正则化系数
         self.critic_loss_coef = 0.5  # 价值函数损失系数
         
         # 统计信息
@@ -445,6 +446,48 @@ class LSTMActorCriticModelSwitcher:
         # 添加熵正则化
         entropy_loss = dist.entropy().mean()
         actor_loss -= self.entropy_beta * entropy_loss
+
+        # # 添加KL散度正则化
+        # uniform_probs = torch.ones_like(action_probs) / action_probs.size(-1)
+        # kl_to_uniform = (action_probs * (action_probs.log() - uniform_probs.log())).sum(dim=1).mean()
+        # actor_loss += self.kl_beta * kl_to_uniform
+
+        # === 针对极小概率的特殊损失 ===
+        # 设定最小可接受概率阈值
+        min_prob_threshold = 1e-2  # 1%
+        
+        # 检查每个批次样本的动作概率分布
+        min_probs_per_batch = action_probs.min(dim=1)[0]  # 每个批次中的最小概率
+        
+        # 计算有多少批次样本中存在极小概率
+        extreme_prob_batches = (min_probs_per_batch < min_prob_threshold).float()
+        num_extreme_batches = extreme_prob_batches.sum().item()
+        
+        # 只有当存在极小概率时才添加惩罚
+        if num_extreme_batches > 0:
+            # 检查每个动作的最小概率
+            min_action_probs = action_probs.min(dim=0)[0]  # 每个动作的最小概率
+            
+            # 找出小于阈值的动作
+            small_prob_actions = (min_action_probs < min_prob_threshold).float()
+            num_small_actions = small_prob_actions.sum().item()
+            
+            if num_small_actions > 0:
+                # 计算对数惩罚：-log(p)当p接近0时会变得非常大
+                prob_penalty = -torch.log(min_action_probs + 1e-10) * small_prob_actions
+                
+                # 只对小于阈值的动作应用惩罚
+                extreme_prob_penalty = prob_penalty.sum() / max(1.0, num_small_actions)
+                
+                # 动态调整惩罚系数，概率越小惩罚越大
+                penalty_coef = 0.1 * (1.0 - min_action_probs.min().item() / min_prob_threshold)
+                penalty_coef = min(penalty_coef, 0.5)  # 限制最大惩罚系数
+                
+                # 添加到actor损失
+                actor_loss = actor_loss + penalty_coef * extreme_prob_penalty
+                
+                print(f"Applied probability penalty: {penalty_coef:.4f} * {extreme_prob_penalty.item():.4f} for {num_small_actions} actions below threshold")
+        
         
         # 更新actor
         actor_loss.backward()

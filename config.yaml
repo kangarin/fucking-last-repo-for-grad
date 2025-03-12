@@ -29,7 +29,7 @@ dynamic_stream:
   default_id: 'dynamic_stream_1'
   fps_control:
     min_fps: 1
-    max_fps: 10
+    max_fps: 15
     min_duration: 120
     max_duration: 600
 
