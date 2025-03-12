@@ -141,20 +141,16 @@ class LSTMActorCriticModelSwitcher:
         self.previous_value = None
         
         # 探索增强参数
-        self.exploration_rate = 0.2  # 初始探索率
-        self.min_exploration_rate = 0.05  # 最小探索率
+        self.exploration_rate = 0.9 # 初始探索率
+        self.min_exploration_rate = 0.1  # 最小探索率
         self.exploration_decay = 0.999  # 探索率衰减因子
-        
-        # 设置强制探索计数器
-        self.force_exploration_count = 10  # 每10次决策强制探索一次
-        self.exploration_counter = 0
         
         # 特征数据归一化参数
         self.feature_means = None
         self.feature_stds = None
         
         # 经验回放设置
-        self.replay_buffer = deque(maxlen=1000)  # 增大缓冲区容量
+        self.replay_buffer = deque(maxlen=1000)  # 缓冲区容量
         self.min_samples_before_update = 8  # 开始训练前的最小样本数
         self.batch_size = 8  # 批处理大小
         self.update_frequency = 1  # 每4个决策周期进行一次网络更新
@@ -478,24 +474,7 @@ class LSTMActorCriticModelSwitcher:
     def select_action(self, state):
         """选择动作（模型）"""
         # 确保隐藏状态与当前输入batch匹配
-        self.network.reset_hidden(batch_size=state.size(0))
-        
-        # 检查是否是强制探索回合
-        self.exploration_counter += 1
-        force_exploration = self.exploration_counter >= self.force_exploration_count
-        
-        # 如果是强制探索回合，重置计数器并随机选择
-        if force_exploration:
-            self.exploration_counter = 0
-            action_idx = np.random.randint(0, len(self.available_models))
-            selected_model = self.idx_to_model[action_idx]
-            print(f"FORCED EXPLORATION: Randomly selected model: yolov5{selected_model}")
-            
-            # 使用网络前向传播获取log_prob和value，但不使用其action
-            action_probs, state_value = self.network(state)
-            log_prob = torch.log(action_probs[0, action_idx])
-            
-            return action_idx, selected_model, log_prob, state_value
+        self.network.reset_hidden(batch_size=state.size(0))       
         
         # 使用网络策略选择动作
         action_idx, log_prob, state_value = self.network.act(state, exploration_rate=self.exploration_rate)
