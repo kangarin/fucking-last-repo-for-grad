@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 550">
+  <!-- 背景 -->
+  <rect width="800" height="550" fill="#FFFFFF" />
+  
+  <!-- 标题 -->
+  <text x="400" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#333333">元策略自适应模型选择框架</text>
+  
+  <!-- ===== 元决策层 ===== -->
+  <rect x="200" y="100" width="400" height="90" rx="6" ry="6" fill="#E3F2FD" stroke="#2196F3" stroke-width="2" />
+  <text x="400" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1565C0">元决策层</text>
+  <text x="400" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#1976D2">上下文感知的Thompson Sampling</text>
+  
+  <!-- 箭头：元决策层 → 基础策略层 -->
+  <path d="M400,190 L400,220" stroke="#90A4AE" stroke-width="2" marker-end="url(#arrowMarker)" />
+  <text x="410" y="210" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#607D8B">策略选择</text>
+  
+  <!-- ===== 基础策略层 ===== -->
+  <rect x="200" y="220" width="400" height="170" rx="6" ry="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2" />
+  <text x="400" y="245" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#2E7D32">基础策略层</text>
+  
+  <!-- 策略1 -->
+  <rect x="220" y="265" width="170" height="50" rx="4" ry="4" fill="#C8E6C9" stroke="#81C784" stroke-width="1" />
+  <text x="305" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1B5E20">基于队列长度和冷却机制</text>
+  
+  <!-- 策略2 -->
+  <rect x="410" y="265" width="170" height="50" rx="4" ry="4" fill="#C8E6C9" stroke="#81C784" stroke-width="1" />
+  <text x="495" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1B5E20">基于处理时延预估</text>
+  
+  <!-- 策略3 -->
+  <rect x="220" y="325" width="170" height="50" rx="4" ry="4" fill="#C8E6C9" stroke="#81C784" stroke-width="1" />
+  <text x="305" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1B5E20">基于目标特征分布</text>
+  
+  <!-- 策略4 -->
+  <rect x="410" y="325" width="170" height="50" rx="4" ry="4" fill="#C8E6C9" stroke="#81C784" stroke-width="1" />
+  <text x="495" y="355" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1B5E20">基于概率决策</text>
+  
+  <!-- 箭头：基础策略层 → 推理服务层 -->
+  <path d="M400,390 L400,420" stroke="#90A4AE" stroke-width="2" marker-end="url(#arrowMarker)" />
+  <text x="410" y="410" text-anchor="start" font-family="Arial, sans-serif" font-size="13" fill="#607D8B">模型选择</text>
+  
+  <!-- ===== 推理服务层 ===== -->
+  <rect x="200" y="420" width="400" height="80" rx="6" ry="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="2" />
+  <text x="400" y="460" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#E65100">推理服务层</text>
+  <text x="400" y="483" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#F57C00">视频分析模型动态执行</text>
+  
+  <!-- ===== 上下文特征与数据流 ===== -->
+  <!-- 上下文信息路径从推理服务层到元决策层和基础策略层 -->
+  <path d="M200,450 C160,450 160,300 160,145 C160,145 180,145 200,145" stroke="#BDBDBD" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowMarker2)" fill="none" />
+  <path d="M160,300 C180,300 180,300 200,300" stroke="#BDBDBD" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrowMarker2)" fill="none" />
+  <text x="150" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#757575" transform="rotate(-90, 150, 260)">上下文特征</text>
+  
+  <!-- 奖励反馈从推理服务层到元决策层 -->
+  <path d="M600,450 C640,450 640,300 640,145 C640,145 620,145 600,145" stroke="#9C27B0" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrowMarker3)" fill="none" />
+  <text x="650" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#9C27B0" transform="rotate(90, 650, 260)">奖励反馈</text>
+  
+  <!-- 定义箭头标记 -->
+  <defs>
+    <marker id="arrowMarker" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#90A4AE" />
+    </marker>
+    <marker id="arrowMarker2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#BDBDBD" />
+    </marker>
+    <marker id="arrowMarker3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#9C27B0" />
+    </marker>
+  </defs>
+</svg>

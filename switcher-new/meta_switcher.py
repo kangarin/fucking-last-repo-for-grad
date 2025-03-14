@@ -13,150 +13,343 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 from config import config
 
-class ConservativeStrategy:
-    """保守型策略：优先选择轻量模型，稳定时才升级"""
+# 这里将会实现不同的策略类
+class DummyStrategy:
+    """占位符策略类，将被实际的策略实现替换"""
     
     def __init__(self, available_models, queue_thresholds):
         self.available_models = available_models
-        self.queue_low = queue_thresholds['low']
-        self.queue_high = queue_thresholds['high']
-        self.queue_max = queue_thresholds['max']
-        
-        # 稳定计数器和阈值
-        self.stability_counter = 0
-        self.stability_threshold = 5  # 需要连续5个周期稳定才升级
+        self.queue_thresholds = queue_thresholds
         
     def select_model(self, stats, current_model):
-        """选择模型策略"""
-        current_idx = self.available_models.index(current_model)
-        queue_length = stats['queue_length']
-        
-        # 如果队列长度超过高阈值，立即降级
-        if queue_length > self.queue_high:
-            self.stability_counter = 0
-            # 降级到更轻量的模型
-            if current_idx > 0:
-                return self.available_models[current_idx - 1], True
-        
-        # 如果队列长度低于低阈值，增加稳定计数
-        elif queue_length < self.queue_low:
-            self.stability_counter += 1
-            # 只有在连续多次稳定后才升级
-            if self.stability_counter >= self.stability_threshold:
-                self.stability_counter = 0
-                # 升级到更高级的模型
-                if current_idx < len(self.available_models) - 1:
-                    return self.available_models[current_idx + 1], False
-        
-        # 其他情况重置稳定计数
-        else:
-            self.stability_counter = 0
-            
-        # 默认保持当前模型
+        """返回占位符模型决策"""
         return current_model, False
 
-
-class AggressiveStrategy:
-    """激进型策略：优先选择高性能模型，只有在压力大时才降级"""
+class QueueLengthStrategy(DummyStrategy):
+    """基于冷却机制的自适应策略"""
     
     def __init__(self, available_models, queue_thresholds):
         self.available_models = available_models
-        self.queue_low = queue_thresholds['low']
-        self.queue_high = queue_thresholds['high']
-        self.queue_max = queue_thresholds['max']
         
-        # 压力计数器和阈值
-        self.pressure_counter = 0
-        self.pressure_threshold = 2  # 只需2个周期高压力就降级
+        # 队列阈值 - 使用配置的高低阈值的平均值
+        self.queue_threshold = (queue_thresholds['high'] + queue_thresholds['low']) // 2
         
+        # 稳定性相关参数
+        self.stability_counter = 0  # 连续稳定周期计数
+        self.base_stability_threshold = 3  # 基础稳定阈值
+        
+        # 冷却机制参数
+        self.cooling_factor = 1  # 冷却系数，初始为1
+        self.max_cooling_factor = 5  # 最大冷却系数
+        self.cooling_recovery_rate = 1  # 每次稳定周期恢复的冷却系数
+    
     def select_model(self, stats, current_model):
-        """选择模型策略"""
+        """基于简化规则做出模型切换决策"""
         current_idx = self.available_models.index(current_model)
         queue_length = stats['queue_length']
         
-        # 如果队列长度超过高阈值，增加压力计数
-        if queue_length > self.queue_high:
-            self.pressure_counter += 1
-            # 在连续多次高压力后降级
-            if self.pressure_counter >= self.pressure_threshold:
-                self.pressure_counter = 0
-                # 降级到更轻量的模型
-                if current_idx > 0:
-                    return self.available_models[current_idx - 1], True
+        # 更新系统稳定状态
+        is_currently_stable = queue_length <= self.queue_threshold
         
-        # 如果队列长度低于低阈值，立即尝试升级
-        elif queue_length < self.queue_low:
-            self.pressure_counter = 0
-            # 尝试升级到更高级的模型
-            if current_idx < len(self.available_models) - 1:
-                return self.available_models[current_idx + 1], False
-        
-        # 其他情况，只有当压力持续时才增加计数
-        else:
-            if queue_length > (self.queue_low + self.queue_high) / 2:
-                self.pressure_counter += 0.5
+        # 如果系统不稳定(队列超过阈值)，立即考虑降级
+        if not is_currently_stable:
+            self.stability_counter = 0  # 重置稳定计数
+            
+            # 如果有更轻量级的模型可用，则降级
+            if current_idx > 0:
+                next_model = self.available_models[current_idx - 1]
+                print(f"Queue length ({queue_length}) exceeds threshold ({self.queue_threshold}). Downgrading from {current_model} to {next_model}")
+                return next_model, True  # 返回模型名和降级标志
             else:
-                self.pressure_counter = 0
+                print(f"Queue length ({queue_length}) exceeds threshold, but already using lightest model.")
+                return current_model, False
+        
+        # 如果系统稳定(队列低于阈值)，考虑是否可以升级
+        else:
+            # 增加稳定计数
+            self.stability_counter += 1
+            print(f"System stable: stability={self.stability_counter}/{self.base_stability_threshold * self.cooling_factor}")
             
-        # 默认保持当前模型
+            # 如果冷却系数大于1，且稳定计数为偶数，则降低冷却系数
+            if self.cooling_factor > 1 and self.stability_counter % 2 == 0:
+                self.cooling_factor = max(1, self.cooling_factor - self.cooling_recovery_rate)
+                print(f"Cooling factor reduced to: {self.cooling_factor}")
+            
+            # 只有当连续稳定次数超过阈值(考虑冷却因子)时，才升级
+            current_stability_threshold = int(self.base_stability_threshold * self.cooling_factor)
+            if self.stability_counter >= current_stability_threshold:
+                # 如果有更高级的模型可用，则升级
+                if current_idx < len(self.available_models) - 1:
+                    next_model = self.available_models[current_idx + 1]
+                    print(f"System consistently stable ({self.stability_counter}/{current_stability_threshold}). Upgrading from {current_model} to {next_model}")
+                    self.stability_counter = 0  # 重置稳定计数
+                    return next_model, False  # 返回模型名和升级标志
+                else:
+                    print("System stable, but already using highest model.")
+                    self.stability_counter = 0  # 重置稳定计数
+            
+        # 保持当前模型
         return current_model, False
-
-
-class AdaptiveStrategy:
-    """自适应策略：根据历史表现动态调整"""
+    
+class LatencyEstimationStrategy(DummyStrategy):
+    """基于处理时延预估的自适应策略
+    
+    为每个模型维护一个时延的预估，通过stats更新时延，然后选择不会导致队列积压的最高性能模型。
+    """
     
     def __init__(self, available_models, queue_thresholds):
-        self.available_models = available_models
-        self.queue_low = queue_thresholds['low']
-        self.queue_high = queue_thresholds['high']
-        self.queue_max = queue_thresholds['max']
+        super().__init__(available_models, queue_thresholds)
         
-        # 历史窗口
-        self.history_window = []
-        self.window_size = 5
+        # 初始化每个模型的处理时延预估（秒/帧）
+        self.latency_estimates = {model: None for model in available_models}
         
-        # 趋势阈值
-        self.trend_threshold = 0.1  # 10%变化视为趋势
-        
+        # 指数移动平均的权重
+        self.alpha = 0.2
+    
     def select_model(self, stats, current_model):
-        """选择模型策略"""
+        """根据当前的统计数据和时延预估选择模型"""
+        # 获取当前FPS和处理时延
+        fps = stats['fps']
+        processing_latency = stats['processing_latency']
+        
+        # 更新当前模型的时延预估
+        if self.latency_estimates[current_model] is None:
+            self.latency_estimates[current_model] = processing_latency
+        else:
+            # 使用指数移动平均更新时延预估
+            self.latency_estimates[current_model] = (1 - self.alpha) * self.latency_estimates[current_model] + self.alpha * processing_latency
+        
+        # 打印当前所有模型的时延预估
+        print("当前各模型时延预估:")
+        for model, latency in self.latency_estimates.items():
+            if latency is not None:
+                print(f"  {model}: {latency:.4f}秒/帧")
+            else:
+                print(f"  {model}: 未测量")
+        
+        # 如果有未测量的模型，随机选择一个
+        unmeasured_models = [model for model, latency in self.latency_estimates.items() if latency is None]
+        if unmeasured_models:
+            import random
+            next_model = random.choice(unmeasured_models)
+            print(f"选择未测量的模型 {next_model} 以获取其时延数据")
+            return next_model, False
+        
+        # 所有模型都已测量，选择能满足当前FPS且性能最高的模型
+        target_latency = 1.0 / fps  # 每帧目标处理时间
+        
+        # 找出所有不会导致队列积压的模型（时延小于等于目标时延）
+        eligible_models = [model for model, latency in self.latency_estimates.items() 
+                          if latency is not None and latency <= target_latency]
+        
+        if not eligible_models:
+            # 如果没有符合条件的模型，选择时延最小的
+            best_model = min(self.latency_estimates, key=lambda m: self.latency_estimates[m] or float('inf'))
+            print(f"没有满足FPS要求的模型，选择时延最小的模型: {best_model}")
+            return best_model, False
+        
+        # 从符合条件的模型中，选择性能最高的（假设模型列表按性能从低到高排序）
+        eligible_indices = [self.available_models.index(model) for model in eligible_models]
+        best_idx = max(eligible_indices)
+        best_model = self.available_models[best_idx]
+        
+        print(f"选择能满足FPS={fps}要求的最高性能模型: {best_model}")
+        return best_model, False
+
+class DistributionBasedStrategy(DummyStrategy):
+    """基于目标数量和大小分布的自适应策略
+    
+    维护目标数量和大小的统计分布，当当前状态偏离正常范围时调整模型。
+    """
+    
+    def __init__(self, available_models, queue_thresholds):
+        super().__init__(available_models, queue_thresholds)
+        
+        # 统计窗口大小
+        self.window_size = 100
+        
+        # 初始化统计窗口
+        self.target_nums_history = []  # 目标数量历史
+        self.target_size_history = []  # 目标大小历史
+        
+        # 统计数据
+        self.target_nums_mean = None   # 目标数量均值
+        self.target_nums_std = None    # 目标数量标准差
+        self.target_size_mean = None   # 目标大小均值
+        self.target_size_std = None    # 目标大小标准差
+        
+        # 偏离标准差的阈值（多少个标准差触发切换）
+        self.std_threshold = 1.0
+        
+        # 稳定性计数器
+        self.upgrade_counter = 0
+        self.downgrade_counter = 0
+        self.stability_threshold = 3
+    
+    def _update_statistics(self, target_nums, target_size):
+        """更新统计数据"""
+        import numpy as np
+        
+        # 更新历史数据
+        self.target_nums_history.append(target_nums)
+        self.target_size_history.append(target_size)
+        
+        # 保持窗口大小
+        if len(self.target_nums_history) > self.window_size:
+            self.target_nums_history.pop(0)
+            self.target_size_history.pop(0)
+        
+        # 只有当收集了足够的样本时才计算统计数据
+        if len(self.target_nums_history) >= 10:
+            self.target_nums_mean = np.mean(self.target_nums_history)
+            self.target_nums_std = np.std(self.target_nums_history) or 1.0  # 避免除零
+            
+            self.target_size_mean = np.mean(self.target_size_history)
+            self.target_size_std = np.std(self.target_size_history) or 1.0  # 避免除零
+    
+    def select_model(self, stats, current_model):
+        """根据目标数量和大小的分布选择模型"""
+        target_nums = stats['target_nums']
+        avg_size = stats['avg_size']
         current_idx = self.available_models.index(current_model)
-        queue_length = stats['queue_length']
         
-        # 更新历史窗口
-        self.history_window.append(queue_length)
-        if len(self.history_window) > self.window_size:
-            self.history_window.pop(0)
+        # 更新统计数据
+        self._update_statistics(target_nums, avg_size)
         
-        # 如果历史窗口填满，分析趋势
-        if len(self.history_window) == self.window_size:
-            # 计算队列长度趋势
-            first_half = sum(self.history_window[:self.window_size//2]) / (self.window_size//2)
-            second_half = sum(self.history_window[self.window_size//2:]) / (self.window_size//2 + self.window_size%2)
+        # 如果统计数据尚未初始化，保持当前模型
+        if self.target_nums_mean is None:
+            print("统计数据尚未初始化，保持当前模型")
+            return current_model, False
+        
+        # 计算当前状态与均值的偏差（以标准差为单位）
+        nums_deviation = (target_nums - self.target_nums_mean) / self.target_nums_std
+        size_deviation = (avg_size - self.target_size_mean) / self.target_size_std
+        
+        print(f"目标数量: {target_nums} (均值: {self.target_nums_mean:.2f}, 标准差: {self.target_nums_std:.2f}, 偏差: {nums_deviation:.2f}σ)")
+        print(f"目标大小: {avg_size:.2f} (均值: {self.target_size_mean:.2f}, 标准差: {self.target_size_std:.2f}, 偏差: {size_deviation:.2f}σ)")
+        
+        # 检查是否需要升级模型
+        need_upgrade = (
+            nums_deviation > self.std_threshold or  # 目标数量超过均值+标准差
+            size_deviation < -self.std_threshold    # 目标大小小于均值-标准差
+        )
+        
+        # 检查是否需要降级模型
+        need_downgrade = (
+            nums_deviation < -self.std_threshold or  # 目标数量小于均值-标准差
+            size_deviation > self.std_threshold      # 目标大小大于均值+标准差
+        )
+        
+        # 决策逻辑
+        if need_upgrade:
+            self.upgrade_counter += 1
+            self.downgrade_counter = 0
+            print(f"可能需要升级: {self.upgrade_counter}/{self.stability_threshold}")
             
-            # 比较前半段和后半段，判断趋势
-            relative_change = (second_half - first_half) / (first_half + 1e-10)
-            
-            # 如果队列长度增加超过阈值，趋势向上，需要降级
-            if relative_change > self.trend_threshold:
-                if current_idx > 0:
-                    return self.available_models[current_idx - 1], True
-            
-            # 如果队列长度减少超过阈值，趋势向下，可以升级
-            elif relative_change < -self.trend_threshold:
+            if self.upgrade_counter >= self.stability_threshold:
                 if current_idx < len(self.available_models) - 1:
-                    return self.available_models[current_idx + 1], False
+                    next_model = self.available_models[current_idx + 1]
+                    print(f"持续需要升级，切换至 {next_model}")
+                    self.upgrade_counter = 0
+                    return next_model, False
+                else:
+                    print("需要升级，但已经使用最高级模型")
+                    self.upgrade_counter = 0
         
-        # 紧急情况处理：队列长度已经超过高阈值
-        if queue_length > self.queue_high:
-            # 立即降级
-            if current_idx > 0:
-                return self.available_models[current_idx - 1], True
+        elif need_downgrade:
+            self.downgrade_counter += 1
+            self.upgrade_counter = 0
+            print(f"可能需要降级: {self.downgrade_counter}/{self.stability_threshold}")
+            
+            if self.downgrade_counter >= self.stability_threshold:
+                if current_idx > 0:
+                    next_model = self.available_models[current_idx - 1]
+                    print(f"持续需要降级，切换至 {next_model}")
+                    self.downgrade_counter = 0
+                    return next_model, False
+                else:
+                    print("需要降级，但已经使用最轻量级模型")
+                    self.downgrade_counter = 0
         
-        # 默认保持当前模型
+        else:
+            # 状态正常，重置计数器
+            self.upgrade_counter = 0
+            self.downgrade_counter = 0
+            print("目标数量和大小在正常范围内，保持当前模型")
+        
         return current_model, False
 
-
+class ProbabilisticStrategy(DummyStrategy):
+    """基于概率的自适应策略
+    
+    根据队列长度的不同，以不同概率做出模型切换决策:
+    1. 队列长度低于low阈值时，确定性升级
+    2. 队列长度在low与high之间时，以线性增长概率降级
+    3. 队列长度高于high阈值时，确定性降级
+    """
+    
+    def __init__(self, available_models, queue_thresholds):
+        super().__init__(available_models, queue_thresholds)
+        
+        # 定义队列阈值
+        self.queue_low = queue_thresholds['low']
+        self.queue_high = queue_thresholds['high']
+    
+    def select_model(self, stats, current_model):
+        """根据队列长度和概率做出模型切换决策"""
+        import random
+        
+        # 获取当前队列长度和模型索引
+        queue_length = stats['queue_length']
+        current_idx = self.available_models.index(current_model)
+        
+        # 打印当前状态
+        print(f"当前队列长度: {queue_length}, 模型: {current_model}")
+        
+        # 队列长度低于low阈值，确定性升级
+        if queue_length <= self.queue_low:
+            if current_idx < len(self.available_models) - 1:
+                next_model = self.available_models[current_idx + 1]
+                print(f"队列长度 ({queue_length}) <= 低阈值 ({self.queue_low})，确定性升级至 {next_model}")
+                return next_model, False
+            else:
+                print(f"队列长度较低，但已经使用最高级模型")
+                return current_model, False
+        
+        # 队列长度高于high阈值，确定性降级
+        elif queue_length >= self.queue_high:
+            if current_idx > 0:
+                next_model = self.available_models[current_idx - 1]
+                print(f"队列长度 ({queue_length}) >= 高阈值 ({self.queue_high})，确定性降级至 {next_model}")
+                return next_model, True
+            else:
+                print(f"队列长度较高，但已经使用最轻量级模型")
+                return current_model, False
+        
+        # 队列长度在low和high之间，概率性降级
+        else:
+            # 计算降级概率 (线性增长)
+            # 队列长度为low时概率为0，为high时概率为1
+            downgrade_prob = (queue_length - self.queue_low) / (self.queue_high - self.queue_low)
+            
+            # 随机决策
+            rand_value = random.random()
+            print(f"队列长度在阈值区间内，降级概率: {downgrade_prob:.2f}, 随机值: {rand_value:.2f}")
+            
+            if rand_value < downgrade_prob:
+                # 触发降级
+                if current_idx > 0:
+                    next_model = self.available_models[current_idx - 1]
+                    print(f"概率性降级触发，切换至 {next_model}")
+                    return next_model, False
+                else:
+                    print("概率性降级触发，但已经使用最轻量级模型")
+                    return current_model, False
+            else:
+                # 保持当前模型
+                print(f"概率性降级未触发，保持当前模型 {current_model}")
+                return current_model, False
+            
 class MetaRuleSwitcher:
     def __init__(self):
         self.sio = Client()
@@ -171,7 +364,7 @@ class MetaRuleSwitcher:
         self.idx_to_model = {idx: model for idx, model in enumerate(self.allowed_models)}
         
         # 决策相关参数
-        self.decision_interval = 2  # 决策周期(秒)
+        self.decision_interval = 1  # 决策周期(秒)
         
         # 可用模型列表
         self.available_models = ['n', 's', 'm', 'l', 'x']
@@ -181,24 +374,26 @@ class MetaRuleSwitcher:
         self.queue_low_threshold_length = config.get_queue_low_threshold_length()
         self.queue_high_threshold_length = config.get_queue_high_threshold_length()
         
-        # 初始化三种策略
+        # 初始化策略参数
         queue_thresholds = {
             'low': self.queue_low_threshold_length,
             'high': self.queue_high_threshold_length,
             'max': self.queue_max_length
         }
         
+        # 使用占位符策略
         self.strategies = {
-            'conservative': ConservativeStrategy(self.available_models, queue_thresholds),
-            'aggressive': AggressiveStrategy(self.available_models, queue_thresholds),
-            'adaptive': AdaptiveStrategy(self.available_models, queue_thresholds)
+            'strategy1': QueueLengthStrategy(self.available_models, queue_thresholds),
+            'strategy2': LatencyEstimationStrategy(self.available_models, queue_thresholds),
+            'strategy3': DistributionBasedStrategy(self.available_models, queue_thresholds),
+            'strategy4': ProbabilisticStrategy(self.available_models, queue_thresholds)
         }
         
         # 当前使用的模型
         self.current_model = None
         
         # 元策略的Thompson Sampling参数
-        self.context_dimension = 13
+        self.context_dimension = 14
         self.meta_models = {}
         self.init_meta_thompson_sampling()
         
@@ -291,14 +486,16 @@ class MetaRuleSwitcher:
             float(stats['contrast']) / 255.0,
             float(stats['entropy']) / 10.0,
             float(stats['cur_model_accuracy']) / 100.0,
-            float(self.model_to_idx.get(stats['cur_model_index'], 0))
+            float(self.model_to_idx.get(stats['cur_model_index'], 0)),
+            float(stats['fps']) 
         ])
         
         feature_names = [
-            'queue_length_norm', 'processing_latency', 'target_nums_norm', 
+            'queue_length_norm', 'processing_latency', 'total_latency',
+            'target_nums_norm', 
             'avg_confidence', 'std_confidence', 'avg_size', 'std_size',
             'brightness_norm', 'contrast_norm', 'entropy_norm', 'model_accuracy_norm',
-            'model_index'
+            'model_index', 'fps'
         ]
         
         print("Extracted features:")
