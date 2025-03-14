@@ -23,7 +23,7 @@ class DummyStrategy:
         
     def select_model(self, stats, current_model):
         """返回占位符模型决策"""
-        return current_model, False
+        return current_model
 
 class QueueLengthStrategy(DummyStrategy):
     """基于冷却机制的自适应策略"""
@@ -59,10 +59,10 @@ class QueueLengthStrategy(DummyStrategy):
             if current_idx > 0:
                 next_model = self.available_models[current_idx - 1]
                 print(f"Queue length ({queue_length}) exceeds threshold ({self.queue_threshold}). Downgrading from {current_model} to {next_model}")
-                return next_model, True  # 返回模型名和降级标志
+                return next_model
             else:
                 print(f"Queue length ({queue_length}) exceeds threshold, but already using lightest model.")
-                return current_model, False
+                return current_model
         
         # 如果系统稳定(队列低于阈值)，考虑是否可以升级
         else:
@@ -83,13 +83,13 @@ class QueueLengthStrategy(DummyStrategy):
                     next_model = self.available_models[current_idx + 1]
                     print(f"System consistently stable ({self.stability_counter}/{current_stability_threshold}). Upgrading from {current_model} to {next_model}")
                     self.stability_counter = 0  # 重置稳定计数
-                    return next_model, False  # 返回模型名和升级标志
+                    return next_model
                 else:
                     print("System stable, but already using highest model.")
                     self.stability_counter = 0  # 重置稳定计数
             
         # 保持当前模型
-        return current_model, False
+        return current_model
     
 class LatencyEstimationStrategy(DummyStrategy):
     """基于处理时延预估的自适应策略
@@ -133,7 +133,7 @@ class LatencyEstimationStrategy(DummyStrategy):
             import random
             next_model = random.choice(unmeasured_models)
             print(f"选择未测量的模型 {next_model} 以获取其时延数据")
-            return next_model, False
+            return next_model
         
         # 所有模型都已测量，选择能满足当前FPS且性能最高的模型
         target_latency = 1.0 / fps  # 每帧目标处理时间
@@ -146,7 +146,7 @@ class LatencyEstimationStrategy(DummyStrategy):
             # 如果没有符合条件的模型，选择时延最小的
             best_model = min(self.latency_estimates, key=lambda m: self.latency_estimates[m] or float('inf'))
             print(f"没有满足FPS要求的模型，选择时延最小的模型: {best_model}")
-            return best_model, False
+            return best_model
         
         # 从符合条件的模型中，选择性能最高的（假设模型列表按性能从低到高排序）
         eligible_indices = [self.available_models.index(model) for model in eligible_models]
@@ -154,7 +154,7 @@ class LatencyEstimationStrategy(DummyStrategy):
         best_model = self.available_models[best_idx]
         
         print(f"选择能满足FPS={fps}要求的最高性能模型: {best_model}")
-        return best_model, False
+        return best_model
 
 class DistributionBasedStrategy(DummyStrategy):
     """基于目标数量和大小分布的自适应策略
@@ -219,7 +219,7 @@ class DistributionBasedStrategy(DummyStrategy):
         # 如果统计数据尚未初始化，保持当前模型
         if self.target_nums_mean is None:
             print("统计数据尚未初始化，保持当前模型")
-            return current_model, False
+            return current_model
         
         # 计算当前状态与均值的偏差（以标准差为单位）
         nums_deviation = (target_nums - self.target_nums_mean) / self.target_nums_std
@@ -251,7 +251,7 @@ class DistributionBasedStrategy(DummyStrategy):
                     next_model = self.available_models[current_idx + 1]
                     print(f"持续需要升级，切换至 {next_model}")
                     self.upgrade_counter = 0
-                    return next_model, False
+                    return next_model
                 else:
                     print("需要升级，但已经使用最高级模型")
                     self.upgrade_counter = 0
@@ -266,7 +266,7 @@ class DistributionBasedStrategy(DummyStrategy):
                     next_model = self.available_models[current_idx - 1]
                     print(f"持续需要降级，切换至 {next_model}")
                     self.downgrade_counter = 0
-                    return next_model, False
+                    return next_model
                 else:
                     print("需要降级，但已经使用最轻量级模型")
                     self.downgrade_counter = 0
@@ -277,7 +277,7 @@ class DistributionBasedStrategy(DummyStrategy):
             self.downgrade_counter = 0
             print("目标数量和大小在正常范围内，保持当前模型")
         
-        return current_model, False
+        return current_model
 
 class ProbabilisticStrategy(DummyStrategy):
     """基于概率的自适应策略
@@ -293,7 +293,7 @@ class ProbabilisticStrategy(DummyStrategy):
         
         # 定义队列阈值
         self.queue_low = queue_thresholds['low']
-        self.queue_high = queue_thresholds['high']
+        self.queue_high = (queue_thresholds['high'] + queue_thresholds['low']) // 2
     
     def select_model(self, stats, current_model):
         """根据队列长度和概率做出模型切换决策"""
@@ -311,20 +311,20 @@ class ProbabilisticStrategy(DummyStrategy):
             if current_idx < len(self.available_models) - 1:
                 next_model = self.available_models[current_idx + 1]
                 print(f"队列长度 ({queue_length}) <= 低阈值 ({self.queue_low})，确定性升级至 {next_model}")
-                return next_model, False
+                return next_model
             else:
                 print(f"队列长度较低，但已经使用最高级模型")
-                return current_model, False
+                return current_model
         
         # 队列长度高于high阈值，确定性降级
         elif queue_length >= self.queue_high:
             if current_idx > 0:
                 next_model = self.available_models[current_idx - 1]
                 print(f"队列长度 ({queue_length}) >= 高阈值 ({self.queue_high})，确定性降级至 {next_model}")
-                return next_model, True
+                return next_model
             else:
                 print(f"队列长度较高，但已经使用最轻量级模型")
-                return current_model, False
+                return current_model
         
         # 队列长度在low和high之间，概率性降级
         else:
@@ -341,14 +341,14 @@ class ProbabilisticStrategy(DummyStrategy):
                 if current_idx > 0:
                     next_model = self.available_models[current_idx - 1]
                     print(f"概率性降级触发，切换至 {next_model}")
-                    return next_model, False
+                    return next_model
                 else:
                     print("概率性降级触发，但已经使用最轻量级模型")
-                    return current_model, False
+                    return current_model
             else:
                 # 保持当前模型
                 print(f"概率性降级未触发，保持当前模型 {current_model}")
-                return current_model, False
+                return current_model
             
 class MetaRuleSwitcher:
     def __init__(self):
@@ -659,16 +659,12 @@ class MetaRuleSwitcher:
                 # 获取各个策略的建议动作
                 strategy_suggestions = {}
                 for name, strategy in self.strategies.items():
-                    model, is_downgrade = strategy.select_model(stats, self.current_model)
-                    strategy_suggestions[name] = {
-                        'model': model,
-                        'is_downgrade': is_downgrade
-                    }
-                    print(f"{name.capitalize()} strategy suggests model: {model}" + 
-                          (" (downgrade)" if is_downgrade else ""))
+                    model = strategy.select_model(stats, self.current_model)
+                    strategy_suggestions[name] = model
+                    print(f"{name.capitalize()} strategy suggests model: {model}")
                 
                 # 执行选中策略的建议
-                selected_model = strategy_suggestions[selected_strategy]['model']
+                selected_model = strategy_suggestions[selected_strategy]
                 
                 # 切换模型
                 if selected_model != self.current_model:
