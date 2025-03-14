@@ -8,22 +8,22 @@ scenarios = ['Static', 'Periodic', 'Burst', 'Mixed']
 # Format: [combined_accuracy%, end-to-end latency(ms), reward]
 performance_data = {
     'Rule-based': {
-        'Static': [62.5, 87.3, 0.65],      # Simple decision, moderate accuracy
-        'Periodic': [61.5, 125.5, 0.63],   # Reacts to changes but not optimally
-        'Burst': [58.9, 135.4, 0.62],      # Quick response to bursts
-        'Mixed': [59.5, 146.7, 0.56]       # Struggles with complex patterns
+        'Static': [92.5, 187.3, 0.95],      # Simple decision, moderate accuracy
+        'Periodic': [91.5, 225.5, 0.93],   # Reacts to changes but not optimally
+        'Burst': [88.9, 235.4, 0.92],      # Quick response to bursts
+        'Mixed': [87.5, 246.7, 0.86]       # Struggles with complex patterns
     },
     'CMAB': {
-        'Static': [64.1, 92.1, 0.68],      # Good model selection after learning
-        'Periodic': [63.5, 110.8, 0.65],   # Learns periodic patterns well
-        'Burst': [59.5, 145.2, 0.60],      # Slower reaction than rules
-        'Mixed': [60.5, 155.6, 0.59]       # Decent performance in complex scenarios
+        'Static': [94.1, 192.1, 0.98],      # Good model selection after learning
+        'Periodic': [93.5, 210.8, 0.95],   # Learns periodic patterns well
+        'Burst': [89.5, 245.2, 0.90],      # Slower reaction than rules
+        'Mixed': [90.8, 255.6, 0.89]       # Decent performance in complex scenarios
     },
     'DRL': {
-        'Static': [64.5, 95.2, 0.67],      # Highest accuracy but with overhead
-        'Periodic': [63.8, 105.1, 0.66],   # Best for predictable patterns
-        'Burst': [60.1, 160.5, 0.57],      # Slowest to react to sudden changes
-        'Mixed': [61.7, 154.3, 0.61]       # Best for complex scenarios
+        'Static': [94.5, 195.2, 0.97],      # Highest accuracy but with overhead
+        'Periodic': [93.8, 205.1, 0.96],   # Best for predictable patterns
+        'Burst': [90.1, 260.5, 0.87],      # Slowest to react to sudden changes
+        'Mixed': [91.7, 254.3, 0.91]       # Best for complex scenarios
     }
 }
 
@@ -41,11 +41,11 @@ for i, method in enumerate(methods):
     acc_data = [performance_data[method][scenario][0] for scenario in scenarios]
     ax1.bar(x + i*bar_width, acc_data, width=bar_width, label=method, color=colors[i])
 
-ax1.set_ylabel('Combined Accuracy (%)', fontsize=12)
+ax1.set_ylabel('Combined Accuracy', fontsize=12)
 ax1.set_title('Combined Accuracy (mAP + Confidence)', fontsize=14)
 ax1.set_xticks(x + bar_width)
 ax1.set_xticklabels(scenarios)
-ax1.set_ylim(57, 66)  # Adjusted for the data range
+ax1.set_ylim(85, 95)  # Adjusted for the data range
 ax1.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Plot Latency
@@ -57,7 +57,7 @@ ax2.set_ylabel('End-to-End Latency (ms)', fontsize=12)
 ax2.set_title('Processing Latency', fontsize=14)
 ax2.set_xticks(x + bar_width)
 ax2.set_xticklabels(scenarios)
-ax2.set_ylim(80, 170)  # Adjusted for the data range
+ax2.set_ylim(180, 270)  # Adjusted for the data range
 ax2.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Plot Reward
@@ -69,7 +69,7 @@ ax3.set_ylabel('Reward Value', fontsize=12)
 ax3.set_title('Overall Performance Reward', fontsize=14)
 ax3.set_xticks(x + bar_width)
 ax3.set_xticklabels(scenarios)
-ax3.set_ylim(0.55, 0.70)  # Adjusted for the data range
+ax3.set_ylim(0.85, 1.00)  # Adjusted for the data range
 ax3.grid(axis='y', linestyle='--', alpha=0.7)
 
 # Add legend at the bottom

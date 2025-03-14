@@ -1,55 +1,41 @@
 import time
 import requests
 from socketio import Client
-import sys
+
 from pathlib import Path
+import sys
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 from config import config
-import time
-import requests
-from socketio import Client
-import sys
-from pathlib import Path
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-sys.path.append(str(project_root))
 from config import config
 
-class SimpleModelSwitcher:
+class OptimizedModelSwitcher:
     def __init__(self):
+        # 初始化Socket.IO客户端
         self.sio = Client()
         processing_config = config.get_edge_processing_config()
         self.processing_server_url = processing_config['url']
         self.http_url = self.processing_server_url
         
-        # 获取允许的模型列表
-        models_config = config.get_models_config()
-        self.allowed_models = models_config['allowed_sizes']
-        
-        # 决策相关参数
-        self.decision_interval = 2  # 决策周期(秒)
-        
         # 可用模型列表，按性能从低到高排序
         self.available_models = ['n', 's', 'm', 'l', 'x']
         
-        # 简化的队列阈值
+        # 队列阈值 - 使用配置的高低阈值的平均值
         self.queue_threshold = (config.get_queue_high_threshold_length() + config.get_queue_low_threshold_length()) // 2
         
-        # 压力计数器
-        self.pressure = 0
+        # 稳定性相关参数
+        self.is_stable = False  # 当前是否稳定
+        self.stability_counter = 0  # 连续稳定周期计数
+        self.base_stability_threshold = 3  # 基础稳定阈值
         
-        # 稳定性计数器和阈值
-        self.stability_counter = 0
-        self.base_stability_threshold = 3  # 基础稳定阈值：连续3次无压力才升级模型
-        self.current_stability_threshold = self.base_stability_threshold
-        
-        # 冷却期相关参数
-        self.consecutive_downgrades = 0  # 连续降级次数
+        # 冷却机制参数
         self.cooling_factor = 1  # 冷却系数，初始为1
         self.max_cooling_factor = 5  # 最大冷却系数
         self.cooling_recovery_rate = 1  # 每次稳定周期恢复的冷却系数
+        
+        # 决策间隔
+        self.decision_interval = 2  # 决策周期(秒)
         
         # 设置Socket.IO事件处理
         self.setup_socket_events()
@@ -71,8 +57,6 @@ class SimpleModelSwitcher:
         @self.sio.on('model_switched')
         def on_model_switched(data):
             print(f"Model successfully switched to: {data['model_name']}")
-            # 不要完全重置，保留冷却相关状态
-            self.pressure = 0
             self.stability_counter = 0
             
         @self.sio.on('error')
@@ -118,16 +102,12 @@ class SimpleModelSwitcher:
             
             # 更新冷却系数
             if is_downgrade:
-                self.consecutive_downgrades += 1
                 # 每次降级增加冷却系数，但不超过最大值
                 self.cooling_factor = min(self.max_cooling_factor, self.cooling_factor + 1)
-                print(f"Downgrade detected! Consecutive downgrades: {self.consecutive_downgrades}, Cooling factor: {self.cooling_factor}")
-                # 更新当前稳定阈值
-                self.current_stability_threshold = int(self.base_stability_threshold * self.cooling_factor)
-                print(f"New stability threshold: {self.current_stability_threshold}")
+                print(f"Downgrade detected! New cooling factor: {self.cooling_factor}")
             else:
-                # 如果是升级，重置连续降级计数
-                self.consecutive_downgrades = 0
+                # 如果是升级，重置冷却因子
+                self.cooling_factor = 1
             
             self.sio.emit('switch_model', {'model_name': model_name})
             print(f"Switching model to: yolov5{model_name}")
@@ -145,68 +125,58 @@ class SimpleModelSwitcher:
         current_model_idx = self.get_model_index(current_model)
         queue_length = stats['queue_length']
         
-        # 更新压力计数器 - 快减慢增模式
-        if queue_length > self.queue_threshold:
-            # 慢增：每次只增加1
-            self.pressure += 1
-            print(f"System under pressure: {self.pressure}")
-        else:
-            # 快减：直接重置为0
-            self.pressure = 0
-            print(f"System pressure fully released: pressure={self.pressure}")
+        # 更新系统稳定状态
+        is_currently_stable = queue_length <= self.queue_threshold
         
-        # 如果有任何压力，判断是否需要立即降级
-        if self.pressure > 0:
-            # 对于任何非零压力，都考虑降级
-            if current_model_idx > 0:  # 确保有更轻量的模型可用
+        # 如果系统不稳定(队列超过阈值)，立即考虑降级
+        if not is_currently_stable:
+            self.stability_counter = 0  # 重置稳定计数
+            
+            # 如果有更轻量级的模型可用，则降级
+            if current_model_idx > 0:
                 next_model = self.available_models[current_model_idx - 1]
-                print(f"Pressure detected ({self.pressure}). Downgrading from yolov5{current_model} to yolov5{next_model}")
-                return next_model, True  # 返回模型名和是否是降级
+                print(f"Queue length ({queue_length}) exceeds threshold ({self.queue_threshold}). Downgrading from yolov5{current_model} to yolov5{next_model}")
+                return next_model, True  # 返回模型名和降级标志
             else:
-                print("Already using lightest model, cannot downgrade further")
-                self.pressure = 0  # 重置压力计数器
+                print(f"Queue length ({queue_length}) exceeds threshold, but already using lightest model.")
                 return None, False
         
-        # 如果系统无压力，谨慎尝试升级到更高级模型（增加稳定性计数器）
-        if self.pressure == 0:
-            # 增加稳定性计数器
+        # 如果系统稳定(队列低于阈值)，考虑是否可以升级
+        else:
+            # 增加稳定计数
             self.stability_counter += 1
-            print(f"System stable: stability={self.stability_counter}/{self.current_stability_threshold}")
+            print(f"System stable: stability={self.stability_counter}/{self.base_stability_threshold * self.cooling_factor}")
             
-            # 逐渐恢复冷却系数
+            # 如果冷却系数大于1，且稳定计数为偶数，则降低冷却系数
             if self.cooling_factor > 1 and self.stability_counter % 2 == 0:
                 self.cooling_factor = max(1, self.cooling_factor - self.cooling_recovery_rate)
-                self.current_stability_threshold = int(self.base_stability_threshold * self.cooling_factor)
-                print(f"Cooling factor reduced to: {self.cooling_factor}, New stability threshold: {self.current_stability_threshold}")
+                print(f"Cooling factor reduced to: {self.cooling_factor}")
             
-            # 只有连续达到当前稳定阈值次数才升级
-            if self.stability_counter >= self.current_stability_threshold:
-                if current_model_idx < len(self.available_models) - 1:  # 确保有更高级的模型可用
+            # 只有当连续稳定次数超过阈值(考虑冷却因子)时，才升级
+            current_stability_threshold = int(self.base_stability_threshold * self.cooling_factor)
+            if self.stability_counter >= current_stability_threshold:
+                # 如果有更高级的模型可用，则升级
+                if current_model_idx < len(self.available_models) - 1:
                     next_model = self.available_models[current_model_idx + 1]
-                    print(f"System consistently stable ({self.stability_counter}/{self.current_stability_threshold}). Upgrading model from yolov5{current_model} to yolov5{next_model}")
-                    self.stability_counter = 0  # 重置稳定计数器
-                    return next_model, False  # 返回模型名和是否是降级
+                    print(f"System consistently stable ({self.stability_counter}/{current_stability_threshold}). Upgrading from yolov5{current_model} to yolov5{next_model}")
+                    self.stability_counter = 0  # 重置稳定计数
+                    return next_model, False  # 返回模型名和降级标志
                 else:
-                    print("Already using highest model, cannot upgrade further")
-                    self.stability_counter = 0  # 重置稳定计数器
-                    return None, False
-        else:
-            # 如果有任何压力，重置稳定性计数器
-            self.stability_counter = 0
-        
-        # 其他情况保持当前模型
+                    print("System stable, but already using highest model.")
+                    self.stability_counter = 0  # 重置稳定计数
+            
+        # 保持当前模型
         return None, False
 
     def adaptive_switch_loop(self):
-        """基于简化规则进行模型切换的主循环"""
+        """模型切换的主循环"""
         if not self.connect_to_server():
             print("Failed to connect to processing server")
             return
             
-        print(f"Starting enhanced model switching loop with {self.decision_interval} second interval")
+        print(f"Starting model switching loop with {self.decision_interval} second interval")
         print(f"Queue threshold: {self.queue_threshold}, Base stability threshold: {self.base_stability_threshold}")
         print(f"Cooling mechanism: Max factor {self.max_cooling_factor}, Recovery rate {self.cooling_recovery_rate}")
-        print(f"Strategy: 快减慢增 with cooling period - Fast downgrade with caution on upgrading after frequent downgrades")
         
         while True:
             try:
@@ -233,6 +203,6 @@ class SimpleModelSwitcher:
                 time.sleep(self.decision_interval)
 
 if __name__ == '__main__':
-    switcher = SimpleModelSwitcher()
-    # 启动增强的切换循环
+    switcher = OptimizedModelSwitcher()
+    # 启动切换循环
     switcher.adaptive_switch_loop()

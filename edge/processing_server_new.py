@@ -49,6 +49,8 @@ class StatsEntry:
     cur_model_accuracy: float = 0.0
     # The processing latency of the inference
     processing_latency: float = 0.0  # Changed to float
+    # The end-to-end latency of the inference
+    total_latency: float = 0.0 
     # The number of detected targets
     target_nums: int = 0
     # The average confidence of the detected targets
@@ -66,6 +68,8 @@ class StatsEntry:
     # The entropy of the image (from original code)
     entropy: float = 0.0
 
+    fps: float = 0.0  
+
 
     def __str__(self) -> str:
         return (
@@ -75,10 +79,12 @@ class StatsEntry:
             f"  Model Index: {self.cur_model_index}\n"
             f"  Model Accuracy: {self.cur_model_accuracy:.2f}\n"
             f"  Processing Latency: {self.processing_latency:.4f}s\n"
+            f"  Total Latency: {self.total_latency:.4f}s\n"
             f"  Targets: {self.target_nums}\n"
             f"  Confidence: {self.avg_confidence:.2f}±{self.std_confidence:.2f}\n"
             f"  Size: {self.avg_size:.2f}±{self.std_size:.2f}\n"
             f"  Image Stats: brightness={self.brightness:.1f}, contrast={self.contrast:.1f}, entropy={self.entropy:.1f}"
+            f"  FPS: {self.fps:.2f}"
         )
     
 class StatsManager:
@@ -87,12 +93,13 @@ class StatsManager:
         self.stats = deque()
         self.time_window = time_window
         self.csv_path = csv_path
+        self.last_record_time = 0
         self.lock = threading.Lock()
         
         # Initialize the CSV file if a path is provided
         if self.csv_path:
             with open(self.csv_path, 'w') as f:
-                f.write('timestamp,queue_length,cur_model_index,cur_model_accuracy,processing_latency,target_nums,avg_confidence,std_confidence,avg_size,std_size,brightness,contrast,entropy\n')
+                f.write('timestamp,queue_length,cur_model_index,cur_model_accuracy,processing_latency,total_latency,target_nums,avg_confidence,std_confidence,avg_size,std_size,brightness,contrast,entropy,fps\n')
 
     def update_stats(self, entry: StatsEntry):
         '''
@@ -108,11 +115,16 @@ class StatsManager:
             while self.stats and current_time - self.stats[0].timestamp > self.time_window:
                 self.stats.popleft()
 
-            # Write to CSV if path is provided
-            if self.csv_path:
-                with open(self.csv_path, 'a') as f:
-                    f.write(f'{entry.timestamp},{entry.queue_length},{entry.cur_model_index},{entry.cur_model_accuracy},{entry.processing_latency},{entry.target_nums},{entry.avg_confidence},{entry.std_confidence},{entry.avg_size},{entry.std_size},{entry.brightness},{entry.contrast},{entry.entropy}\n')
-    
+            # 检查是否到达新的一秒，只在每秒的第一次推理时写入CSV
+            current_second = int(current_time)
+            if current_second > self.last_record_time:
+                # Write to CSV if path is provided
+                if self.csv_path:
+                    with open(self.csv_path, 'a') as f:
+                        f.write(f'{entry.timestamp},{entry.queue_length},{entry.cur_model_index},{entry.cur_model_accuracy},{entry.processing_latency},{entry.total_latency},{entry.target_nums},{entry.avg_confidence},{entry.std_confidence},{entry.avg_size},{entry.std_size},{entry.brightness},{entry.contrast},{entry.entropy},{entry.fps}\n')
+                self.last_record_time = current_second
+                print(f"Recorded stats for second {current_second}")
+ 
     def get_latest_stats(self, nums: int = 1):
         '''
         Get the latest statistics
@@ -260,7 +272,7 @@ class DetectionProcessor:
         # Start processing thread
         self.processing_thread.start()
     
-    def add_frame_to_queue(self, stream_id, frame_id, timestamps, frame):
+    def add_frame_to_queue(self, stream_id, frame_id, timestamps, frame, fps):
         """Add a frame to the processing queue"""
         with self.queue_lock:
             # If queue is at max length, oldest frame will automatically be dropped
@@ -268,7 +280,8 @@ class DetectionProcessor:
                 'stream_id': stream_id,
                 'frame_id': frame_id,
                 'timestamps': timestamps,
-                'frame': frame
+                'frame': frame,
+                'fps': fps
             })
     
     def _process_queue(self):
@@ -288,7 +301,7 @@ class DetectionProcessor:
                 # No frames to process, sleep briefly
                 time.sleep(0.01)
     
-    def _process_single_frame(self, stream_id, frame_id, timestamps, frame):
+    def _process_single_frame(self, stream_id, frame_id, timestamps, frame, fps):
         """Process a single frame and send results to display server"""
         try:
             if stream_id not in self.active_streams:
@@ -349,6 +362,7 @@ class DetectionProcessor:
                     cur_model_index=self.model_manager.current_model_name,
                     cur_model_accuracy=self.model_manager.current_map,
                     processing_latency=timestamps['processed'] - timestamps['start_processing'],
+                    total_latency=timestamps['processed'] - timestamps['received'],
                     target_nums=total_targets,
                     avg_confidence=avg_conf,
                     std_confidence=std_conf,
@@ -356,25 +370,12 @@ class DetectionProcessor:
                     std_size=std_size,
                     brightness=brightness,
                     contrast=contrast,
-                    entropy=entropy
+                    entropy=entropy,
+                    fps=fps
                 )
                 
                 # Update the stats manager
                 self.model_manager.stats_manager.update_stats(stats_entry)
-                
-                # Print detailed stats for debugging
-                print(f"Accuracy: {self.model_manager.current_map:.1f} mAP, "
-                      f"Latency: {timestamps['processed'] - timestamps['received']:.3f}s, "
-                      f"Processing Latency: {timestamps['processed'] - timestamps['start_processing']:.3f}s, "
-                      f"Queue Length: {len(self.frame_queue)}, "
-                      f"Model: yolov5{self.model_manager.current_model_name}, "
-                      f"Avg Confidence: {avg_conf:.2f}, "
-                      f"Avg Size: {avg_size:.2f}, "
-                      f"Brightness: {brightness:.2f}, "
-                      f"Contrast: {contrast:.2f}, "
-                      f"Entropy: {entropy:.2f}, "
-                      f"Total Targets: {total_targets}"
-                     )
                 
                 # Encode processed frame
                 _, buffer = cv2.imencode('.jpg', rendered_frame)
@@ -457,7 +458,8 @@ def handle_frame(data):
             stream_id=stream_id,
             frame_id=data.get('frame_id'),
             timestamps=timestamps,
-            frame=frame
+            frame=frame,
+            fps=target_fps
         )
         
     except Exception as e:

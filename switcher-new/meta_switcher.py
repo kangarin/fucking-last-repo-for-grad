@@ -198,7 +198,7 @@ class MetaRuleSwitcher:
         self.current_model = None
         
         # 元策略的Thompson Sampling参数
-        self.context_dimension = 12
+        self.context_dimension = 13
         self.meta_models = {}
         self.init_meta_thompson_sampling()
         
@@ -281,6 +281,7 @@ class MetaRuleSwitcher:
         features = np.array([
             float(stats['queue_length']) / self.queue_high_threshold_length,
             float(stats['processing_latency']),
+            float(stats['total_latency']),
             float(stats['target_nums']) / 10.0,
             float(stats['avg_confidence']),
             float(stats['std_confidence']),

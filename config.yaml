@@ -28,8 +28,8 @@ dynamic_stream:
   source_path: 'data'
   default_id: 'dynamic_stream_1'
   fps_control:
-    min_fps: 1
-    max_fps: 15
+    min_fps: 5
+    max_fps: 5
     min_duration: 120
     max_duration: 600
 
@@ -38,3 +38,6 @@ queue:
   max_length: 100
   low_threshold_length: 10
   high_threshold_length: 50
+
+stats:
+  path: 'stats/stats.csv'

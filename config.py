@@ -62,6 +62,10 @@ class Config:
     def get_queue_high_threshold_length(self):
         """Get queue high length threshold for model switching"""
         return self._config['queue']['high_threshold_length']
+    
+    def get_stats_path(self):
+        """Get path for saving statistics"""
+        return self._config['stats']['path']
 
 # Create a singleton instance
 config = Config()

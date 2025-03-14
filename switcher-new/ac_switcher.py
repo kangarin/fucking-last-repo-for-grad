@@ -160,7 +160,7 @@ class LSTMActorCriticModelSwitcher:
         
         # 模型网络参数
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.input_dim = 12  # 统计数据中的特征数量
+        self.input_dim = 13  # 统计数据中的特征数量
         self.hidden_dim = 32  # 隐藏层维度
         self.output_dim = len(self.available_models)  # 动作空间大小
         
@@ -287,6 +287,7 @@ class LSTMActorCriticModelSwitcher:
             feature = [
                 float(stats['queue_length']) / self.queue_high_threshold_length,  # 队列长度的归一化值
                 float(stats['processing_latency']),
+                float(stats['total_latency']),
                 float(stats['target_nums']) / 10.0,  # 假设平均目标数量不超过10
                 float(stats['avg_confidence']),  # 已经是0-1之间
                 float(stats['std_confidence']),  # 已经是较小值

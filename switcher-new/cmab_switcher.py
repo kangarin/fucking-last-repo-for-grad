@@ -54,7 +54,7 @@ class ThompsonSamplingModelSwitcher:
         self.lambda_reg = 1.0        # 正则化参数
         
         # Thompson Sampling 参数
-        self.context_dimension = 11  # 特征维度
+        self.context_dimension = 13  # 特征维度
         self.models = {}
         self.init_thompson_sampling_models()
         
@@ -158,6 +158,7 @@ class ThompsonSamplingModelSwitcher:
         features = np.array([
             float(stats['queue_length']) / self.queue_high_threshold_length,  # 队列长度的归一化值
             float(stats['processing_latency']),
+            float(stats['total_latency']),
             float(stats['target_nums']) / 10.0,  # 假设平均目标数量不超过10
             float(stats['avg_confidence']),  # 已经是0-1之间
             float(stats['std_confidence']),  # 已经是较小值
@@ -167,6 +168,7 @@ class ThompsonSamplingModelSwitcher:
             float(stats['contrast']) / 255.0,  # 对比度归一化到0-1
             float(stats['entropy']) / 10.0,  # 熵通常在0-10之间
             float(stats['cur_model_accuracy']) / 100.0,  # 准确率归一化到0-1
+            float(stats['fps'])
         ])
         
         # 增加一个常数特征，相当于偏置项
@@ -174,9 +176,9 @@ class ThompsonSamplingModelSwitcher:
         
         # 打印特征向量，便于调试
         feature_names = [
-            'queue_length_norm', 'processing_latency', 'target_nums_norm', 
+            'queue_length_norm', 'processing_latency', 'total_latency', 'target_nums_norm', 
             'avg_confidence', 'std_confidence', 'avg_size', 'std_size',
-            'brightness_norm', 'contrast_norm', 'entropy_norm', 'model_accuracy_norm'
+            'brightness_norm', 'contrast_norm', 'entropy_norm', 'model_accuracy_norm', 'fps'
         ]
         
         print("Extracted features:")
