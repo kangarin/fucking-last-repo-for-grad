@@ -349,7 +349,82 @@ class ProbabilisticStrategy(DummyStrategy):
                 # 保持当前模型
                 print(f"概率性降级未触发，保持当前模型 {current_model}")
                 return current_model
+
+class StagnantQueueStrategy(DummyStrategy):
+    """检测持续稳定但积压的队列
+    
+    连续观察队列长度变化情况，如果队列长度保持稳定但始终有积压的任务，
+    则在连续观察到三次队列没有显著下降后强制降级。
+    """
+    
+    def __init__(self, available_models, queue_thresholds):
+        super().__init__(available_models, queue_thresholds)
+        
+        # 初始化队列历史记录
+        self.queue_history = []
+        
+        # 设置检测参数
+        self.history_length = 3  # 需要记录的历史长度
+        self.stagnation_threshold = 0.2  # 队列变化阈值（低于此比例视为稳定）
+        self.minimum_queue_concern = queue_thresholds['low']  # 低于此阈值的队列不视为问题
+        
+    def select_model(self, stats, current_model):
+        """根据队列稳定性做出模型切换决策"""
+        current_idx = self.available_models.index(current_model)
+        queue_length = stats['queue_length']
+        
+        # 记录当前队列长度
+        self.queue_history.append(queue_length)
+        
+        # 仅保留最近的几次记录
+        if len(self.queue_history) > self.history_length:
+            self.queue_history.pop(0)
             
+        # 输出队列历史
+        print(f"队列历史记录: {self.queue_history}")
+        
+        # 如果历史记录不足，无法判断趋势
+        if len(self.queue_history) < self.history_length:
+            print("历史记录不足，继续观察")
+            return current_model
+        
+        # 如果当前队列长度低于关注阈值，不需要干预
+        if queue_length < self.minimum_queue_concern:
+            print(f"队列长度 ({queue_length}) 低于关注阈值 ({self.minimum_queue_concern})，无需干预")
+            return current_model
+        
+        # 计算队列变化率
+        changes = []
+        for i in range(1, len(self.queue_history)):
+            prev = self.queue_history[i-1]
+            curr = self.queue_history[i]
+            if prev > 0:  # 避免除零
+                change = (curr - prev) / prev
+                changes.append(change)
+        
+        print(f"队列变化率: {[f'{c:.2f}' for c in changes]}")
+        
+        # 检查队列是否稳定（所有变化都低于阈值）
+        is_stagnant = all(abs(change) < self.stagnation_threshold for change in changes)
+        
+        # 检查是否为持续积压（队列稳定且都为正值）
+        if is_stagnant and queue_length > self.minimum_queue_concern:
+            print(f"检测到持续稳定积压队列 ({queue_length})，连续 {self.history_length} 次观察无显著变化")
+            
+            # 如果有更轻量级的模型可用，则降级
+            if current_idx > 0:
+                next_model = self.available_models[current_idx - 1]
+                print(f"强制降级模型从 {current_model} 到 {next_model}")
+                # 清空历史记录，避免连续多次降级
+                self.queue_history = []
+                return next_model
+            else:
+                print("已经使用最轻量级模型，无法进一步降级")
+        else:
+            print("队列变化正常或无持续积压")
+            
+        return current_model
+                
 class MetaRuleSwitcher:
     def __init__(self):
         self.sio = Client()
@@ -386,7 +461,8 @@ class MetaRuleSwitcher:
             'strategy1': QueueLengthStrategy(self.available_models, queue_thresholds),
             'strategy2': LatencyEstimationStrategy(self.available_models, queue_thresholds),
             'strategy3': DistributionBasedStrategy(self.available_models, queue_thresholds),
-            'strategy4': ProbabilisticStrategy(self.available_models, queue_thresholds)
+            'strategy4': ProbabilisticStrategy(self.available_models, queue_thresholds),
+            'strategy5': StagnantQueueStrategy(self.available_models, queue_thresholds)
         }
         
         # 当前使用的模型
