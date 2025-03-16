@@ -596,7 +596,7 @@ class MetaRuleSwitcher:
     
     def calculate_reward(self, stats):
         """计算奖励值"""
-        queue_ratio = stats['queue_length'] / self.queue_high_threshold_length
+        queue_ratio = stats['queue_length'] / self.queue_low_threshold_length
         
         # 权重计算
         w1 = max(1 - queue_ratio, 0)  # 准确率权重

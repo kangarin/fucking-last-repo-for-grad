@@ -24,7 +24,7 @@ class ModelSwitcher:
         self.allowed_models = models_config['allowed_sizes']
         
         # 决策相关参数
-        self.decision_interval = 2  # 决策周期(秒), 改为5秒
+        self.decision_interval = 1  # 决策周期(秒), 改为5秒
         
         # 可用模型列表
         self.available_models = ['n', 's', 'm', 'l', 'x']

@@ -148,7 +148,7 @@ class StatsManager:
             if not self.stats:
                 return [None] * nums
                 
-            result = [None] * nums
+            result = [StatsEntry()] * nums
             current_time = self.stats[-1].timestamp
             
             # 使用二分查找优化查找过程

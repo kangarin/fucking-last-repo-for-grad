@@ -253,7 +253,7 @@ class A2CAgent:
             state = states[-1]
             
             # 计算基础奖励
-            queue_ratio = state['queue_length'] / self.queue_high_threshold_length
+            queue_ratio = state['queue_length'] / self.queue_low_threshold_length
             w1 = max(1 - queue_ratio, 0)  # 准确率权重
             w2 = queue_ratio  # 延迟权重
 

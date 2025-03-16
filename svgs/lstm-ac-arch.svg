@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300">
+  <!-- 定义箭头 -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666666" />
+    </marker>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="800" height="500" fill="#ffffff" />
+  
+  <!-- 标题 -->
+  <text x="400" y="35" font-family="Arial, sans-serif" font-size="22" text-anchor="middle" font-weight="bold">基于LSTM的Actor-Critic自适应模型选择架构</text>
+  
+  <!-- 时序输入 - 第一列 -->
+  <rect x="50" y="80" width="140" height="160" rx="10" ry="10" fill="#e6f2ff" stroke="#0066cc" stroke-width="2" />
+  <text x="120" y="65" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" font-weight="bold">时序特征输入</text>
+  
+  <!-- 时间步骤表示 -->
+  <rect x="65" y="100" width="110" height="30" rx="5" ry="5" fill="#ffffff" stroke="#0066cc" stroke-width="1" />
+  <text x="120" y="120" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">时刻 t-n+1 状态</text>
+  
+  <rect x="65" y="140" width="110" height="30" rx="5" ry="5" fill="#ffffff" stroke="#0066cc" stroke-width="1" />
+  <text x="120" y="160" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">时刻 t-n+2 状态</text>
+  
+  <text x="120" y="180" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">...</text>
+  
+  <rect x="65" y="190" width="110" height="30" rx="5" ry="5" fill="#ffffff" stroke="#0066cc" stroke-width="1" />
+  <text x="120" y="210" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">时刻 t 状态</text>
+  
+  <!-- LSTM层 - 第二列 -->
+  <rect x="250" y="80" width="120" height="160" rx="10" ry="10" fill="#fff2e6" stroke="#ff8c00" stroke-width="2" />
+  <text x="310" y="65" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" font-weight="bold">LSTM层</text>
+  
+  <!-- Actor LSTM -->
+  <rect x="270" y="100" width="80" height="60" rx="5" ry="5" fill="#ffffff" stroke="#ff8c00" stroke-width="1" />
+  <text x="310" y="135" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Actor LSTM</text>
+  
+  <!-- Critic LSTM -->
+  <rect x="270" y="170" width="80" height="60" rx="5" ry="5" fill="#ffffff" stroke="#ff8c00" stroke-width="1" />
+  <text x="310" y="205" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Critic LSTM</text>
+  
+  <!-- Actor网络 - 第三列上方 -->
+  <rect x="430" y="80" width="120" height="60" rx="10" ry="10" fill="#e6ffe6" stroke="#009900" stroke-width="2" />
+  <text x="490" y="70" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" font-weight="bold">Actor网络</text>
+  <text x="490" y="115" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">π(a|s_t)</text>
+  
+  <!-- Critic网络 - 第三列下方 -->
+  <rect x="430" y="180" width="120" height="60" rx="10" ry="10" fill="#ffe6e6" stroke="#cc0000" stroke-width="2" />
+  <text x="490" y="170" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" font-weight="bold">Critic网络</text>
+  <text x="490" y="215" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">V(s_t)</text>
+  
+  <!-- 模型选择输出 - 第四列 -->
+  <rect x="610" y="80" width="140" height="160" rx="10" ry="10" fill="#f0e6ff" stroke="#6600cc" stroke-width="2" />
+  <text x="680" y="65" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" font-weight="bold">决策输出</text>
+  
+  <!-- 概率分布 -->
+  <rect x="630" y="100" width="100" height="30" rx="5" ry="5" fill="#ffffff" stroke="#6600cc" stroke-width="1" />
+  <text x="680" y="120" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">模型概率分布</text>
+  
+  <!-- 采样 -->
+  <rect x="630" y="150" width="100" height="30" rx="5" ry="5" fill="#ffffff" stroke="#6600cc" stroke-width="1" stroke-dasharray="3,1" />
+  <text x="680" y="170" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">概率采样</text>
+  
+  <!-- 最终选择 -->
+  <rect x="630" y="200" width="100" height="30" rx="5" ry="5" fill="#ffffff" stroke="#6600cc" stroke-width="1" />
+  <text x="680" y="220" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">模型选择</text>
+  
+  <!-- 连接线 - 全部横平竖直 -->
+  <!-- 输入到LSTM层 -->
+  <path d="M190 130 L250 130" stroke="#666666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  <path d="M190 200 L250 200" stroke="#666666" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  
+  <!-- LSTM到Actor/Critic网络 -->
+  <!-- Actor路径: LSTM -> Actor网络 -->
+  <path d="M350 130 L430 130" stroke="#009900" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  
+  <!-- Critic路径: LSTM -> Critic网络 -->
+  <path d="M350 200 L430 200" stroke="#cc0000" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  
+  <!-- Actor到决策输出 -->
+  <path d="M550 110 L580 110 L580 110 L610 110" stroke="#009900" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  
+  <!-- 决策过程垂直箭头 -->
+  <path d="M680 130 L680 150" stroke="#6600cc" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+  <path d="M680 180 L680 200" stroke="#6600cc" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+</svg>
