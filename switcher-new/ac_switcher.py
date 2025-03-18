@@ -455,7 +455,7 @@ class LSTMActorCriticModelSwitcher:
 
         # === 针对极小概率的特殊损失 ===
         # 设定最小可接受概率阈值
-        min_prob_threshold = 1e-2  # 1%
+        min_prob_threshold = 5e-2  # 5%
         
         # 检查每个批次样本的动作概率分布
         min_probs_per_batch = action_probs.min(dim=1)[0]  # 每个批次中的最小概率

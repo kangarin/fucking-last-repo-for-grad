@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- Background -->
+  <rect width="800" height="500" fill="#ffffff" rx="10" ry="10" />
+  
+  <!-- Data Flow Model Section -->
+  <rect x="50" y="80" width="700" height="180" fill="#e6f7ff" stroke="#1890ff" stroke-width="2" rx="8" ry="8" />
+  <text x="400" y="110" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#1890ff">数据流模型</text>
+  
+  <!-- Dynamic Priority Section -->
+  <rect x="50" y="280" width="700" height="180" fill="#f6ffed" stroke="#52c41a" stroke-width="2" rx="8" ry="8" />
+  <text x="400" y="310" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#52c41a">任务动态优先级设计</text>
+  
+  <!-- Data Flow Components -->
+  <rect x="100" y="140" width="120" height="60" fill="#ffffff" stroke="#1890ff" stroke-width="2" rx="6" ry="6" />
+  <text x="160" y="175" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#333">生产者</text>
+  
+  <!-- Message Queue -->
+  <rect x="345" y="140" width="115" height="60" fill="#ffffff" stroke="#1890ff" stroke-width="2" rx="6" ry="6" />
+  <text x="400" y="165" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#333">消息队列</text>
+  <text x="400" y="185" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#666">(松耦合缓冲区)</text>
+  
+  <!-- Consumer -->
+  <rect x="585" y="140" width="115" height="60" fill="#ffffff" stroke="#1890ff" stroke-width="2" rx="6" ry="6" />
+  <text x="640" y="175" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#333">消费者</text>
+  
+  <!-- Flow Arrows - Horizontal -->
+  <path d="M220 170 L340 170" stroke="#1890ff" stroke-width="2" fill="none" />
+  <polygon points="335,165 345,170 335,175" fill="#1890ff" />
+  
+  <path d="M460 170 L580 170" stroke="#1890ff" stroke-width="2" fill="none" />
+  <polygon points="575,165 585,170 575,175" fill="#1890ff" />
+  
+  <!-- Priority Queue Components -->
+  <rect x="265" y="330" width="275" height="100" fill="#ffffff" stroke="#52c41a" stroke-width="2" rx="6" ry="6" />
+  <text x="400" y="350" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#333">优先级队列</text>
+  
+  <!-- Priority Levels -->
+  <rect x="280" y="365" width="240" height="20" fill="#f6ffed" stroke="#52c41a" stroke-width="1" />
+  <text x="400" y="380" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#333">高优先级任务</text>
+  
+  <rect x="280" y="390" width="240" height="15" fill="#d9f7be" stroke="#52c41a" stroke-width="1" />
+  <text x="400" y="402" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#333">中优先级任务</text>
+  
+  <rect x="280" y="410" width="240" height="10" fill="#b7eb8f" stroke="#52c41a" stroke-width="1" />
+  <text x="400" y="419" font-family="Arial, sans-serif" font-size="8" text-anchor="middle" fill="#333">低优先级任务</text>
+  
+  <!-- Priority Factors -->
+  <rect x="100" y="330" width="120" height="45" fill="#ffffff" stroke="#52c41a" stroke-width="2" rx="6" ry="6" />
+  <text x="160" y="350" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#333">数据流重要程度</text>
+  <text x="160" y="366" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#666">(人为预设权重)</text>
+  
+  <rect x="100" y="385" width="120" height="45" fill="#ffffff" stroke="#52c41a" stroke-width="2" rx="6" ry="6" />
+  <text x="160" y="405" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#333">任务紧急程度</text>
+  <text x="160" y="421" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#666">(动态变化)</text>
+  
+  <!-- Microservices -->
+  <rect x="585" y="355" width="120" height="50" fill="#ffffff" stroke="#52c41a" stroke-width="2" rx="6" ry="6" />
+  <text x="640" y="375" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#333">无状态微服务</text>
+  <text x="640" y="391" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#666">(处理优先任务)</text>
+  
+  <!-- Priority Factor Arrows - Only Horizontal Straight Lines -->
+  <path d="M220 350 L260 350" stroke="#52c41a" stroke-width="2" fill="none" />
+  <polygon points="255,345 265,350 255,355" fill="#52c41a" />
+  
+  <path d="M220 407 L260 407" stroke="#52c41a" stroke-width="2" fill="none" />
+  <polygon points="255,402 265,407 255,412" fill="#52c41a" />
+  
+  <!-- Queue to Service Arrow - Horizontal -->
+  <path d="M540 380 L580 380" stroke="#52c41a" stroke-width="2" fill="none" />
+  <polygon points="575,375 585,380 575,385" fill="#52c41a" />
+  
+  <!-- Integration between the two systems - Vertical -->
+  <path d="M400 200 L400 330" stroke="#fa8c16" stroke-width="2" stroke-dasharray="5,5" fill="none" />
+  <polygon points="395,325 400,335 405,325" fill="#fa8c16" />
+</svg>
